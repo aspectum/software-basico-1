@@ -8,35 +8,96 @@ Primeira passagem:  *Faz a tabela de Símbolos
 
 */
 #include <iostream>
-#include<fstream>                           //Para lidar com o arquivo. Nunca usei isso, então não sei comofas
+#include <fstream>                           //Para lidar com o arquivo. Nunca usei isso, então não sei comofas
+#include <string>
+#include <list>
 
 
 using namespace std;
 
+typedef struct tabSimItem_s {
+    char label[20];
+    int endereco;
+} tabSimItem;
 
-void carregaArquivo (FILE *fp, char *buffer) {                   //Ver se a passagem dos argumentos está correta
+int getLength (char *token) {
+    if (*token == "ADD") {
+        return 2;
+    }
+    else if (*token == "SUB") {
+        return 2;
+    }
+    else if (*token == "MULT") {
+        return 2;
+    }
+    else if (*token == "DIV") {
+        return 2;
+    }
+    else if (*token == "JMP") {
+        return 2;
+    }
+    else if (*token == "JMPN") {
+        return 2;
+    }
+    else if (*token == "JMPP") {
+        return 2;
+    }
+    else if (*token == "JMPZ") {
+        return 2;
+    }
+    else if (*token == "COPY") {
+        return 3;
+    }
+    else if (*token == "LOAD") {
+        return 2;
+    }
+    else if (*token == "STORE") {
+        return 2;
+    }
+    else if (*token == "INPUT") {
+        return 2;
+    }
+    else if (*token == "OUTPUT") {
+        return 2;
+    }
+    else if (*token == "STOP") {
+        return 1;
+    }
+    else {
+        return 0;
+    }
+    
+}
+
+// Aqui tem que adequar para as diretivas e áreas .text e .data
+// Ele ta supondo que ou é label, ou instrução ou parametro
+void primeiraPassagem (list <tabSimItem> *tabSim) {
     ifstream arquivo;
-    int tamanho;
+    int tamanho, i=0, endereco=0;
+    string token;
+    tabSimItem SimAtual;
 
     arquivo.open("nomeDoArquivo.whatever"); //O nome do arquivo vai ser passado pelo terminal, então não sei ainda como vai fazer
-    arquivo.seekg(0, arquivo.end);    // go to the end
-    tamanho = .tellg();           // report location (this is the length)
-    arquivo.seekg(0, arquivo.beg);    // go back to the beginning
-    //buffer = new char[tamanho];    // allocate memory for a buffer of appropriate dimension
-    buffer = (char*) malloc(tamanho*sizeof(char));  //será que isso da certo?
-    arquivo.read(buffer, tamanho);       // read the whole file into the buffer
-    arquivo.close();   
-
-    //agora o arquivo foi carregado em "buffer"
-}
-
-void primeiraPassagem (char *buffer, char *limpo) {       //Esse limpo vai ser o resultado da primeira passagem, sem rotulos e comentarios e diretivas etc
-    int i=0;
-
-    while (buffer[i]!=NULL) {
-
+    while (arquivo >> token) {
+        if token[token.length()] == ':' {
+            token.pop_back();
+            SimAtual.label = token;
+            SimAtual.endereco = endereco;
+            *tabSim.push_back(SimAtual);
+        }
+        else {
+            tamanho = getLength();
+            endereco += tamanho;
+            for (i = tamanho, i > 0, i--) {// Isso ta fazendo o i-- quando? Pode ser que dê treta. Fazer verificação de erro dps
+                arquivo >> token;
+            }
+        }
     }
 }
-/*
-Isso tudo deve estar muito errado e deve ter um jeito mais fácil. Vou pesquisar antes de fazer.
-*/
+
+int main () {
+    list <tabSimItem> tabSim;
+
+    primeiraPassagem(&tabSim);
+    return 0;
+}
