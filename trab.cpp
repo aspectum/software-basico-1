@@ -1,5 +1,5 @@
 /*
-Primeira passagem:  *Faz a tabela de Símbolos
+Está declarando token como string sem o tamanho. Deve dar pau. Talvez usar char* token
 
 
 
@@ -9,9 +9,10 @@ Primeira passagem:  *Faz a tabela de Símbolos
 */
 #include <iostream>
 #include <fstream>                           //Para lidar com o arquivo. Nunca usei isso, então não sei comofas
-#include <string>
+#include <string.h>
 #include <list>
-
+#include <ctype.h>                          // Usando na função isalpha
+#include <sstream>                          // Para retirar as palavras da linha
 
 using namespace std;
 
@@ -20,47 +21,47 @@ typedef struct tabSimItem_s {
     int endereco;
 } tabSimItem;
 
-int getLength (char *token) {
-    if (*token == "ADD") {
+int getLength (string token) {
+    if (token == "ADD") {
         return 2;
     }
-    else if (*token == "SUB") {
+    else if (token == "SUB") {
         return 2;
     }
-    else if (*token == "MULT") {
+    else if (token == "MULT") {
         return 2;
     }
-    else if (*token == "DIV") {
+    else if (token == "DIV") {
         return 2;
     }
-    else if (*token == "JMP") {
+    else if (token == "JMP") {
         return 2;
     }
-    else if (*token == "JMPN") {
+    else if (token == "JMPN") {
         return 2;
     }
-    else if (*token == "JMPP") {
+    else if (token == "JMPP") {
         return 2;
     }
-    else if (*token == "JMPZ") {
+    else if (token == "JMPZ") {
         return 2;
     }
-    else if (*token == "COPY") {
+    else if (token == "COPY") {
         return 3;
     }
-    else if (*token == "LOAD") {
+    else if (token == "LOAD") {
         return 2;
     }
-    else if (*token == "STORE") {
+    else if (token == "STORE") {
         return 2;
     }
-    else if (*token == "INPUT") {
+    else if (token == "INPUT") {
         return 2;
     }
-    else if (*token == "OUTPUT") {
+    else if (token == "OUTPUT") {
         return 2;
     }
-    else if (*token == "STOP") {
+    else if (token == "STOP") {
         return 1;
     }
     else {
@@ -71,27 +72,59 @@ int getLength (char *token) {
 
 // Aqui tem que adequar para as diretivas e áreas .text e .data
 // Ele ta supondo que ou é label, ou instrução ou parametro
+// Por enquanto ele está apenas fazendo a tabela de símbolos
+// Gera um arquivo intermediário sem rótulos e comentários
 void primeiraPassagem (list <tabSimItem> *tabSim) {
     ifstream arquivo;
+    ofstream codPreP;
     int tamanho, i=0, endereco=0;
-    string token;
+    string token, linha;
     tabSimItem SimAtual;
 
     arquivo.open("nomeDoArquivo.whatever"); //O nome do arquivo vai ser passado pelo terminal, então não sei ainda como vai fazer
-    while (arquivo >> token) {
-        if token[token.length()] == ':' {
-            token.pop_back();
-            SimAtual.label = token;
-            SimAtual.endereco = endereco;
-            *tabSim.push_back(SimAtual);
-        }
-        else {
-            tamanho = getLength();
-            endereco += tamanho;
-            for (i = tamanho, i > 0, i--) {// Isso ta fazendo o i-- quando? Pode ser que dê treta. Fazer verificação de erro dps
-                arquivo >> token;
+    codPreP.open("codPreProcessado.txt");
+    while (getline(arquivo,linha)) {
+        stringstream linhaStream(linha);
+        while (linhaStream >> token) {
+            if (token[token.length()] == ':') {
+                token.pop_back();
+                token.copy(SimAtual.label, token.length);
+                SimAtual.endereco = endereco;
+                tabSim->push_back(SimAtual);
+            }
+            else if (token[0] == ';') {
+                break;                          // Quando chega no comentário vai para a próxima linha sem ler mais nada nessa
+            }
+            else {
+                tamanho = getLength(token);
+                endereco += tamanho;
+                codPreP << token;
+                for (i = tamanho; i > 0; i--) {// Isso ta fazendo o i-- quando? Pode ser que dê treta. Fazer verificação de erro dps
+                    linhaStream >> token;
+                    codPreP << token;
+                }
             }
         }
+        codPreP << "\n";
+    }
+}
+
+void scanner (char *token) {
+    if (!isalpha(token[0])) {
+        // PARA TUDO, ERRO LÉXICO
+    }
+}
+
+// WIP
+void segundaPassagem (list <tabSimItem> tabSim) {
+    ifstream arquivo;
+    ofstream output;
+    int tamanho, i=0, endereco=0;
+    string token, linha;
+
+    arquivo.open("nomeDoArquivo.whatever"); //O nome do arquivo vai ser passado pelo terminal, então não sei ainda como vai fazer
+    while (getline(arquivo,linha)) {
+        while() 
     }
 }
 
