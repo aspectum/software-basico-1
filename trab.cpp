@@ -1,6 +1,6 @@
 /*
 Está declarando token como string sem o tamanho. Deve dar pau. Talvez usar char* token
-
+olaosj[fasmkldnas[dj]]
 
 
 
