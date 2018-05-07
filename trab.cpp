@@ -1,10 +1,11 @@
 /*
 Está declarando token como string sem o tamanho. Deve dar pau. Talvez usar char* token
-olaosj[fasmkldnas[dj]]
+Pedro carregado.
 
-
-
-
+git pull
+git add trab.cpp
+git commit -m "mensagem"
+git push
 
 */
 #include <iostream>
