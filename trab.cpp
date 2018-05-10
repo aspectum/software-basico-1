@@ -2,12 +2,12 @@
 Está declarando token como string sem o tamanho. Deve dar pau. Talvez usar char* token
 Pedro carregado.
 
+tem uns caracteres estranhos no label (às vezes, parece inconsistente). Tem que ver se na hora de procurar na tabela isso vai dar treta.
+
 git pull
 git add trab.cpp
 git commit -m "mensagem"
 git push
-        // codPreP << " |Processando token: "<< token << " |\n";//debug de pobre
-
 */
 #include <iostream>
 #include <fstream>                           //Para lidar com o arquivo. Nunca usei isso, então não sei comofas
@@ -96,6 +96,20 @@ void inputTemp (string *nome) {
     cin >> *nome;
 }
 
+void printaTabSimTemp (list <tabSimItem> tabSim) {
+    string texto;
+    list <tabSimItem> :: iterator it;
+
+    it = tabSim.begin();
+    while (it != tabSim.end()) {
+        texto = it->label;
+        cout << "Label: " << texto << "\tEndereco: " << it->endereco << endl;
+        it++;
+    }
+
+
+}
+
 // Aqui tem que adequar para as diretivas e áreas .text e .data
 // Ele ta supondo que ou é label, ou instrução ou parametro
 // Por enquanto ele está apenas fazendo a tabela de símbolos
@@ -103,7 +117,7 @@ void inputTemp (string *nome) {
 void primeiraPassagem (list <tabSimItem> *tabSim, string nome) {
     ifstream arquivo;
     ofstream codPreP;
-    char colon;
+    char colon, semicolon;
     int tamanho, i=0, endereco=0;
     string token, linha;
     tabSimItem SimAtual;
@@ -112,25 +126,26 @@ void primeiraPassagem (list <tabSimItem> *tabSim, string nome) {
     codPreP.open("codPreProcessado.txt");
     while (getline(arquivo,linha)) {
         stringstream linhaStream(linha);
-        endereco = 0;
         while (linhaStream >> token) {
-        colon = token.back();
+            colon = token.back();
+            semicolon = token.front();
             if (colon == ':') {
                 token.pop_back();
+                cout << token << endl;
                 token.copy(SimAtual.label, token.length());
                 SimAtual.endereco = endereco;
                 tabSim->push_back(SimAtual);
             }
-            else if (token[0] == ';') {
+            else if (semicolon == ';') {
                 break;                          // Quando chega no comentário vai para a próxima linha sem ler mais nada nessa
             }
             else {
                 tamanho = getOP(token);
                 endereco += tamanho;
-                codPreP << token;
-                for (i = tamanho; i > 0; i--) {// Isso ta fazendo o i-- quando? Pode ser que dê treta. Fazer verificação de erro dps
+                codPreP << token << " ";
+                for (i = tamanho; i > 1; i--) {// Isso ta fazendo o i-- quando? Pode ser que dê treta. Fazer verificação de erro dps
                     linhaStream >> token;
-                    codPreP << token;
+                    codPreP << token << " ";
                 }
             }
         }
@@ -207,6 +222,7 @@ int main () {
 
     //inputTemp (&nome);
     primeiraPassagem(&tabSim,nome);
+    printaTabSimTemp(tabSim);
     //segundaPassagem(tabSim,nome);
     return 0;
 }

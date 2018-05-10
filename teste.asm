@@ -1,3 +1,3 @@
 copy aaa bbb ;coment1
-aaa: stop ;com
+aaa: mult bbb ;com
 bbb: stop
