@@ -131,7 +131,7 @@ void primeiraPassagem (list <tabSimItem> *tabSim, string nome) {
             semicolon = token.front();
             if (colon == ':') {
                 token.pop_back();
-                cout << token << endl;
+                token.push_back('\0');
                 token.copy(SimAtual.label, token.length());
                 SimAtual.endereco = endereco;
                 tabSim->push_back(SimAtual);
@@ -179,24 +179,27 @@ void segundaPassagem (list <tabSimItem> tabSim,string nome) {
     arquivo.open("codPreProcessado.txt"); //O nome do arquivo vai ser passado pelo terminal, então não sei ainda como vai fazer
     output.open("aout.txt");
     output << "teste \n";
+    cout << "Entrou na segunda passagem" << endl;
     while (getline(arquivo,linha)) {
         stringstream linhaStream(linha);
-        linhaStream >> token;               // Primeiro token da linha, deve obrigatoriamente ser operacao
-        scanner(token);
+        linhaStream >> token;               // Primeiro token da linha, deve obrigatoriamente ser operacao?
+        //scanner(token);
+        cout << "|Linha lida: " << linha << "| ";
         op=getOP(token);
-        output << linha << "\n";            //debug de pobre
+        cout << "op= " << op << endl;
         if (op < 0) {
-            // Erro, operaçao invalida
+            cout << "Erro, operacao invalida: " << token << endl;
         }
         else {
-            output << token; // Escreve no arquivo o opcode
-            i=0;
+            output << token << " "; // Escreve no arquivo o opcode
+            i=1;
             while (linhaStream >> token) {
-                scanner(token);
+                //scanner(token);
                 it = tabSim.begin();
                 while (1) {
                     if (it == tabSim.end()) {
-                        // Erro, percorreu a tabela de simbolos e nao encontrou, simbolo nao definido
+                        cout << "Erro, simbolo nao definido: " << token << endl;
+                        break;
                     }
                     else if (strcmp(token.c_str(),it->label) != 0) {
                         it++;
@@ -205,12 +208,11 @@ void segundaPassagem (list <tabSimItem> tabSim,string nome) {
                         break;
                     }
                 }
-
-                output << it->endereco;
+                output << it->endereco << " ";
                 i++;
             }
             if (i != op) {
-                //Erro, número de operandos diferente da operaçao
+                cout << "Erro, numero de operandos diferente da operacao: " << token << endl;
             }
         }
     }
@@ -223,6 +225,6 @@ int main () {
     //inputTemp (&nome);
     primeiraPassagem(&tabSim,nome);
     printaTabSimTemp(tabSim);
-    //segundaPassagem(tabSim,nome);
+    segundaPassagem(tabSim,nome);
     return 0;
 }
