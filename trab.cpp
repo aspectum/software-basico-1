@@ -25,6 +25,10 @@
 • Verificar, na primeira passagem, se o rótulo existe na tabela de símbolos. Se existe, dar erro de símbolo redefinido.
     - Já dá o erro
 
+• A primeira passagem está mais complexa do que precisaria ser, mas isso tira complexidade da segunda.
+
+• Comecei a fazer algo das diretivas SPACE e CONST, mas está complicado prever como vão interagir com as seçoes TEXT e DATA. Melhor lidar com as seções primeiro.
+
 PRECISA INTERROMPER A COMPILAÇÃO NOS ERROS!!!
 
 
@@ -112,8 +116,20 @@ int getOp (string token) {
     else {
         return -1;
     }
-    
 }
+/*
+int getDiretiva (string token) {
+    if (iequals(token,"SPACE") == 1) {
+        return 101;
+    }
+    else if (iequals(token,"CONST") == 1) {
+        return 102;
+    }
+    else {
+        return -1;
+    }
+}
+*/
 
 int getTam (int opCode) {
     if (opCode == 9) {
@@ -170,6 +186,7 @@ void primeiraPassagem (list <tabSimItem> *tabSim, string nome) {
     ofstream codPreP;
     char colon, semicolon;
     int tamanho, i=0, endereco=0, op=-1, simEndereco=-1;
+    // int diretiva=-1;
     string token, linha;
     tabSimItem SimAtual;
 
@@ -191,8 +208,9 @@ void primeiraPassagem (list <tabSimItem> *tabSim, string nome) {
         }
         else {
             op = getOp(token);
+            //diretiva = getDiretiva(token);
             if (op > 0) {
-                i=1;
+                i = 1;
                 tamanho = getTam(op);
                 if (op == 9) { //caso do copy
                     codPreP << token << " ";
@@ -205,8 +223,15 @@ void primeiraPassagem (list <tabSimItem> *tabSim, string nome) {
                     continue;
                 }
             }
+            /*
+            if (diretiva > 0) {
+                i = 1;
+                tamanho = getTam(diretiva);
+                endereco--;
+            }
+            */
             codPreP << token << " ";
-            if (i >= tamanho) {
+            if (i == tamanho) {
                 codPreP << endl;
             }
             i++;
