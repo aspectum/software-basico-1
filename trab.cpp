@@ -11,6 +11,8 @@
 
 • O comando COPY deve utilizar uma v´ırgula entre os operandos SEM ESPAC¸ O (COPY A,B)
 - Muito ridículo isso aqui. Vai precisar modificar o código. Se não me engano para macro vai ser assim tb.
+    - Feito! Na primeira passagem ele detecta o copy, le o prox token (um token so dos 2 parametros com a virgula no meio) e bypassa o algoritmo
+    para passar para o arquivo intermediario manualmente, colocando espaco entre os parametros.
 
 • A diretiva CONST deve aceitar declara¸c˜ao em hexadecimal tamb´em (no formato 0x00);
 - Por enquanto nenhuma diretiva está implementada, mas quando for fazer isso levar em conta.
@@ -21,6 +23,9 @@
 • Macro é declarada na seção texto e EQU vem antes de tudo.
 
 • Verificar, na primeira passagem, se o rótulo existe na tabela de símbolos. Se existe, dar erro de símbolo redefinido.
+    - Já dá o erro
+
+PRECISA INTERROMPER A COMPILAÇÃO NOS ERROS!!!
 
 
 git pull
@@ -146,14 +151,12 @@ int tabSimSeek (list <tabSimItem> tabSim, string token) {
     while (1) {
         if (it == tabSim.end()) {
             return -1;
-            //break; - quase ctz de que n preciso disso
         }
         else if (iequals(token.c_str(),it->label) != 1) {
             it++;
         }
         else {
             return it->endereco;
-            //break; - quase ctz de que n preciso disso
         }
     }
 }
@@ -166,7 +169,7 @@ void primeiraPassagem (list <tabSimItem> *tabSim, string nome) {
     ifstream arquivo;
     ofstream codPreP;
     char colon, semicolon;
-    int tamanho, i=0, endereco=0, op=-1;
+    int tamanho, i=0, endereco=0, op=-1, simEndereco=-1;
     string token, linha;
     tabSimItem SimAtual;
 
@@ -176,8 +179,11 @@ void primeiraPassagem (list <tabSimItem> *tabSim, string nome) {
     while (arquivo >> token) {
         colon = token.back();
         if (colon == ':') {
-            //Procurar na tabela de símbolos
             token.pop_back();
+            simEndereco = tabSimSeek(*tabSim, token);
+            if (simEndereco > 0) {
+                cout << "Erro, simbolo ja definido: |" << token << endl;
+            }
             token.push_back('\0');
             token.copy(SimAtual.label, token.length());
             SimAtual.endereco = endereco;
@@ -188,6 +194,16 @@ void primeiraPassagem (list <tabSimItem> *tabSim, string nome) {
             if (op > 0) {
                 i=1;
                 tamanho = getTam(op);
+                if (op == 9) { //caso do copy
+                    codPreP << token << " ";
+                    arquivo >> token;
+                    if (token.find(',') == string::npos) {
+                        cout << "Erro, parametros errados sla" << endl;
+                    }
+                    codPreP << token.substr(0,token.find(',')) << " " << token.substr(token.find(',')+1,token.length()) << endl;
+                    endereco+=3;
+                    continue;
+                }
             }
             codPreP << token << " ";
             if (i >= tamanho) {
@@ -221,7 +237,7 @@ as regras comuns da linguagem C, sendo compostos por letras, n´umeros ou o cara
 void segundaPassagem (list <tabSimItem> tabSim,string nome) {
     ifstream arquivo;
     ofstream output;
-    int i, op=-1, tamanho=-1, enderecoSim=-1;
+    int i, op=-1, tamanho=-1, simEndereco=-1;
     string token, linha;
 
     arquivo.open("codPreProcessado.txt"); //O nome do arquivo vai ser passado pelo terminal, então não sei ainda como vai fazer
@@ -243,12 +259,12 @@ void segundaPassagem (list <tabSimItem> tabSim,string nome) {
             i=1;
             while (linhaStream >> token) {
                 //scanner(token);
-                enderecoSim = tabSimSeek(tabSim, token);
-                if (enderecoSim < 0) {
+                simEndereco = tabSimSeek(tabSim, token);
+                if (simEndereco < 0) {
                     cout << "Erro, simbolo nao definido: |" << token << "| na linha : ``" << linha << "``" << endl;
                 }
                 else {
-                    output << enderecoSim << " ";
+                    output << simEndereco << " ";
                 }
                 i++;
             }
