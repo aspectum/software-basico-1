@@ -42,53 +42,65 @@ bool iequals(std::string const& a, std::string const& b)
     }
 }
 
-int getOP (string token) {
+int getOp (string token) {
     if (iequals(token,"ADD") == 1) {
-        return 2;
+        return 1;
     }
     else if (iequals(token,"SUB") == 1) {
         return 2;
     }
     else if (iequals(token,"MULT") == 1) {
-        return 2;
-    }
-    else if (iequals(token,"DIV") == 1) {
-        return 2;
-    }
-    else if (iequals(token,"JMP") == 1) {
-        return 2;
-    }
-    else if (iequals(token,"JMPN") == 1) {
-        return 2;
-    }
-    else if (iequals(token,"JMPP") == 1) {
-        return 2;
-    }
-    else if (iequals(token,"JMPZ") == 1) {
-        return 2;
-    }
-    else if (iequals(token,"COPY") == 1) {
         return 3;
     }
+    else if (iequals(token,"DIV") == 1) {
+        return 4;
+    }
+    else if (iequals(token,"JMP") == 1) {
+        return 5;
+    }
+    else if (iequals(token,"JMPN") == 1) {
+        return 6;
+    }
+    else if (iequals(token,"JMPP") == 1) {
+        return 7;
+    }
+    else if (iequals(token,"JMPZ") == 1) {
+        return 8;
+    }
+    else if (iequals(token,"COPY") == 1) {
+        return 9;
+    }
     else if (iequals(token,"LOAD") == 1) {
-        return 2;
+        return 10;
     }
     else if (iequals(token,"STORE") == 1) {
-        return 2;
+        return 11;
     }
     else if (iequals(token,"INPUT") == 1) {
-        return 2;
+        return 12;
     }
     else if (iequals(token,"OUTPUT") == 1) {
-        return 2;
+        return 13;
     }
     else if (iequals(token,"STOP") == 1) {
-        return 1;
+        return 14;
     }
     else {
         return -1;
     }
     
+}
+
+int getParam (int opCode) {
+    if (opCode == 9) {
+        return 3;
+    }
+    else if (opCode == 14) {
+        return 1;
+    }
+    else {
+        return 2;
+    }
 }
 
 void inputTemp (string *nome) {
@@ -118,7 +130,7 @@ void primeiraPassagem (list <tabSimItem> *tabSim, string nome) {
     ifstream arquivo;
     ofstream codPreP;
     char colon, semicolon;
-    int tamanho, i=0, endereco=0;
+    int tamanho, i=0, endereco=0, op=-1;
     string token, linha;
     tabSimItem SimAtual;
 
@@ -140,7 +152,13 @@ void primeiraPassagem (list <tabSimItem> *tabSim, string nome) {
                 break;                          // Quando chega no comentário vai para a próxima linha sem ler mais nada nessa
             }
             else {
-                tamanho = getOP(token);
+                op = getOp(token);
+                if (op < 0) {
+                    cout << "Erro, operacao invalida: " << token << endl;
+                }
+                else {
+                    tamanho = getParam(op);
+                }
                 endereco += tamanho;
                 codPreP << token << " ";
                 for (i = tamanho; i > 1; i--) {// Isso ta fazendo o i-- quando? Pode ser que dê treta. Fazer verificação de erro dps
@@ -172,26 +190,23 @@ void scanner (string token) {
 void segundaPassagem (list <tabSimItem> tabSim,string nome) {
     ifstream arquivo;
     ofstream output;
-    int i, op=0;
+    int i, op=0, tamanho;
     string token, linha;
     list <tabSimItem> :: iterator it;
 
     arquivo.open("codPreProcessado.txt"); //O nome do arquivo vai ser passado pelo terminal, então não sei ainda como vai fazer
     output.open("aout.txt");
-    output << "teste \n";
-    cout << "Entrou na segunda passagem" << endl;
     while (getline(arquivo,linha)) {
         stringstream linhaStream(linha);
         linhaStream >> token;               // Primeiro token da linha, deve obrigatoriamente ser operacao?
         //scanner(token);
-        cout << "|Linha lida: " << linha << "| ";
-        op=getOP(token);
-        cout << "op= " << op << endl;
+        op = getOp(token);
+        tamanho = getParam(op);
         if (op < 0) {
             cout << "Erro, operacao invalida: " << token << endl;
         }
         else {
-            output << token << " "; // Escreve no arquivo o opcode
+            output << op << " "; // Escreve no arquivo o opcode
             i=1;
             while (linhaStream >> token) {
                 //scanner(token);
@@ -211,7 +226,7 @@ void segundaPassagem (list <tabSimItem> tabSim,string nome) {
                 output << it->endereco << " ";
                 i++;
             }
-            if (i != op) {
+            if (i != tamanho) {
                 cout << "Erro, numero de operandos diferente da operacao: " << token << endl;
             }
         }
