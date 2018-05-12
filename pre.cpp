@@ -1,3 +1,4 @@
+/*Falta os erros, comentario, macro. Esta em um arquivo separado mas copiei algumas funcoes que voce usou.*/
 #include <iostream>
 #include <fstream>                           //Para lidar com o arquivo. Nunca usei isso, então não sei comofas
 #include <string.h>
@@ -109,6 +110,9 @@ void ifequ (list <tabSimItem> *tabSim, string nome){
         		nextlineflag = 0;
         	}
         	else {
+        		if(linha.find(';')<1000){
+        			linha.resize(linha.find(';')-1);
+        		}
         		codprep << linha << "\n";
         	}  
         //scanner(token);
