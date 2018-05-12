@@ -1,8 +1,27 @@
 /*
-Está declarando token como string sem o tamanho. Deve dar pau. Talvez usar char* token
-Pedro carregado.
+• Remover toda a case-sensitividade, mesmo na tabela de símbolos, então usar iequals para comparar string
+- Aparentemente feito. Foi só usar iequals na tabela de símbolos em vez de strcmp
 
-tem uns caracteres estranhos no label (às vezes, parece inconsistente). Tem que ver se na hora de procurar na tabela isso vai dar treta.
+• Desconsiderar tabula¸c˜oes, quebras de linha e espa¸cos desnecess´arios (incluindo quebra de linha depois do r´otulo).
+- Não sei se acontece isso (especialmente quebra de linha dps do rótulo). Verificar dps e fazer mudanças necessárias
+    - Agora ele lida com quebra de linha depois do rótulo. O que acontecia é que a primeira passagem gerava o arquivo (codPreProcessado) e quando tinha quebra
+    de linha dps do rótulo ele gerava linha em branco, aí na 2 passagem ele lia a linha e interpretava errado. Foi necessário adicionar um teste para ver se 
+    a linha lida tem tamanho 0.
+    - Agora está perfeito. Na 1 passagem, ele le token por token (em vez de ler linhas). Desse modo, pode ser até 1 token por linha que ele não fica perdido
+
+• O comando COPY deve utilizar uma v´ırgula entre os operandos SEM ESPAC¸ O (COPY A,B)
+- Muito ridículo isso aqui. Vai precisar modificar o código. Se não me engano para macro vai ser assim tb.
+
+• A diretiva CONST deve aceitar declara¸c˜ao em hexadecimal tamb´em (no formato 0x00);
+- Por enquanto nenhuma diretiva está implementada, mas quando for fazer isso levar em conta.
+
+• Identificar erros durante a montagem.
+- Pegar a lista no roteiro, mas deixa pra se preocupar com isso dps.
+
+• Macro é declarada na seção texto e EQU vem antes de tudo.
+
+• Verificar, na primeira passagem, se o rótulo existe na tabela de símbolos. Se existe, dar erro de símbolo redefinido.
+
 
 git pull
 git add trab.cpp
@@ -91,7 +110,7 @@ int getOp (string token) {
     
 }
 
-int getParam (int opCode) {
+int getTam (int opCode) {
     if (opCode == 9) {
         return 3;
     }
@@ -118,8 +137,25 @@ void printaTabSimTemp (list <tabSimItem> tabSim) {
         cout << "Label: " << texto << "\tEndereco: " << it->endereco << endl;
         it++;
     }
+}
 
+int tabSimSeek (list <tabSimItem> tabSim, string token) {
+    list <tabSimItem> :: iterator it;
 
+    it = tabSim.begin();
+    while (1) {
+        if (it == tabSim.end()) {
+            return -1;
+            //break; - quase ctz de que n preciso disso
+        }
+        else if (iequals(token.c_str(),it->label) != 1) {
+            it++;
+        }
+        else {
+            return it->endereco;
+            //break; - quase ctz de que n preciso disso
+        }
+    }
 }
 
 // Aqui tem que adequar para as diretivas e áreas .text e .data
@@ -136,38 +172,30 @@ void primeiraPassagem (list <tabSimItem> *tabSim, string nome) {
 
     arquivo.open(nome); //O nome do arquivo vai ser passado pelo terminal, então não sei ainda como vai fazer
     codPreP.open("codPreProcessado.txt");
-    while (getline(arquivo,linha)) {
-        stringstream linhaStream(linha);
-        while (linhaStream >> token) {
-            colon = token.back();
-            semicolon = token.front();
-            if (colon == ':') {
-                token.pop_back();
-                token.push_back('\0');
-                token.copy(SimAtual.label, token.length());
-                SimAtual.endereco = endereco;
-                tabSim->push_back(SimAtual);
-            }
-            else if (semicolon == ';') {
-                break;                          // Quando chega no comentário vai para a próxima linha sem ler mais nada nessa
-            }
-            else {
-                op = getOp(token);
-                if (op < 0) {
-                    cout << "Erro, operacao invalida: " << token << endl;
-                }
-                else {
-                    tamanho = getParam(op);
-                }
-                endereco += tamanho;
-                codPreP << token << " ";
-                for (i = tamanho; i > 1; i--) {// Isso ta fazendo o i-- quando? Pode ser que dê treta. Fazer verificação de erro dps
-                    linhaStream >> token;
-                    codPreP << token << " ";
-                }
-            }
+    // Procurar por SECTION TEXT aqui?
+    while (arquivo >> token) {
+        colon = token.back();
+        if (colon == ':') {
+            //Procurar na tabela de símbolos
+            token.pop_back();
+            token.push_back('\0');
+            token.copy(SimAtual.label, token.length());
+            SimAtual.endereco = endereco;
+            tabSim->push_back(SimAtual);
         }
-        codPreP << "\n";
+        else {
+            op = getOp(token);
+            if (op > 0) {
+                i=1;
+                tamanho = getTam(op);
+            }
+            codPreP << token << " ";
+            if (i >= tamanho) {
+                codPreP << endl;
+            }
+            i++;
+            endereco++;
+        }
     }
     arquivo.close();
     codPreP.close();
@@ -177,6 +205,9 @@ void primeiraPassagem (list <tabSimItem> *tabSim, string nome) {
 // Quais caracteres especiais pode ter?
 // Dar um jeito de parar tudo quando der erro e printar warning
 void scanner (string token) {
+    /* Os identificadores de vari´aveis e r´otulos s˜ao limitados em 20 caracteres e seguem
+as regras comuns da linguagem C, sendo compostos por letras, n´umeros ou o caractere
+(underscore) e com a restri¸c˜ao de que o primeiro caractere n˜ao pode ser um n´umero.*/
     if (!isalpha(token[0])) {
         // PARA TUDO, ERRO LÉXICO
     }
@@ -190,44 +221,39 @@ void scanner (string token) {
 void segundaPassagem (list <tabSimItem> tabSim,string nome) {
     ifstream arquivo;
     ofstream output;
-    int i, op=0, tamanho;
+    int i, op=-1, tamanho=-1, enderecoSim=-1;
     string token, linha;
-    list <tabSimItem> :: iterator it;
 
     arquivo.open("codPreProcessado.txt"); //O nome do arquivo vai ser passado pelo terminal, então não sei ainda como vai fazer
     output.open("aout.txt");
     while (getline(arquivo,linha)) {
+        if (linha.length() == 0) {
+            continue;
+        }
         stringstream linhaStream(linha);
         linhaStream >> token;               // Primeiro token da linha, deve obrigatoriamente ser operacao?
         //scanner(token);
         op = getOp(token);
-        tamanho = getParam(op);
+        tamanho = getTam(op);
         if (op < 0) {
-            cout << "Erro, operacao invalida: " << token << endl;
+            cout << "Erro, operacao invalida: |" << token << "| na linha : ``" << linha << "``" << endl;
         }
         else {
             output << op << " "; // Escreve no arquivo o opcode
             i=1;
             while (linhaStream >> token) {
                 //scanner(token);
-                it = tabSim.begin();
-                while (1) {
-                    if (it == tabSim.end()) {
-                        cout << "Erro, simbolo nao definido: " << token << endl;
-                        break;
-                    }
-                    else if (strcmp(token.c_str(),it->label) != 0) {
-                        it++;
-                    }
-                    else {
-                        break;
-                    }
+                enderecoSim = tabSimSeek(tabSim, token);
+                if (enderecoSim < 0) {
+                    cout << "Erro, simbolo nao definido: |" << token << "| na linha : ``" << linha << "``" << endl;
                 }
-                output << it->endereco << " ";
+                else {
+                    output << enderecoSim << " ";
+                }
                 i++;
             }
             if (i != tamanho) {
-                cout << "Erro, numero de operandos diferente da operacao: " << token << endl;
+                cout << "Erro, numero de operandos diferente da operacao: |" << token << "| na linha : ``" << linha << "``" << endl;
             }
         }
     }
