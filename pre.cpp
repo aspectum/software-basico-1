@@ -1,4 +1,5 @@
-/*Falta os erros, comentario, macro. Esta em um arquivo separado mas copiei algumas funcoes que voce usou.*/
+/*Falta fazer a parte de erros. A macro esta em um outro arquivo. Esta em um arquivo separado mas copiei algumas funcoes que voce 
+usou.*/
 #include <iostream>
 #include <fstream>                           //Para lidar com o arquivo. Nunca usei isso, então não sei comofas
 #include <string.h>
@@ -59,22 +60,22 @@ int tabSimSeek (list <tabSimItem> tabSim, string token) {
     }
 }
 
-void ifequ (list <tabSimItem> *tabSim, string nome){
-	ifstream arquivo;
-    ofstream codprep;
-    string token,linha,tokenaux;
+void ifequ (list <tabSimItem> *tabSim, string nome){//Aqui tem o token e o token aux, sendo o token aux o  token anterior ao token
+	ifstream arquivo;								//Para facilitar quando achar um EQU
+    ofstream codprep;								//Quando for fazer a parte de erros tem que mudar um pouqinho
+    string token,linha,tokenaux;					
     int equflag,ifflag,nextlineflag,i=0, endereco=0, op=-1, simEndereco=-1,lala;
     tabSimItem SimAtual;
 
     arquivo.open("bin.asm");
-    codprep.open("bin.txt");
+    codprep.open("prebin.txt");
     while (getline(arquivo,linha)) {
         stringstream linhaStream(linha);
         while(linhaStream >> token){
         	//errotoken
-        	if((iequals(token,"EQU") == 1)){//Verifica se o token e um EQU, se for EQU ele manda o label anterior pra tabela
+        	if((iequals(token,"EQU") == 1)){//Verifica se o token e um EQU, se for EQU ele manda o token aux anterior pra tabela
         		equflag = 1;
-        		if ((tokenaux.back()) == ':') {
+        		if ((tokenaux.back()) == ':') {//Verifica se o tokenaux e uma label, se nao for da erro
             		tokenaux.pop_back();
            			simEndereco = tabSimSeek(*tabSim, tokenaux);
             		if (simEndereco > 0) {
@@ -87,12 +88,11 @@ void ifequ (list <tabSimItem> *tabSim, string nome){
        				cout << "Erro sintatico";
        			}
         	}
-        	if((iequals(tokenaux,"EQU") == 1)){
+        	if((iequals(tokenaux,"EQU") == 1)){ //Quando o tokenaux for EQU, ele coloca o token seguinte na tabela
         		SimAtual.endereco = atoi (token.c_str());
         		tabSim->push_back(SimAtual);
-        		
         	}
-        	if((iequals(tokenaux,"IF") == 1)){
+        	if((iequals(tokenaux,"IF") == 1)){//Quando o tokenaux for IF, ele procura o token seguinte na tabela dos EQU
         		ifflag = 1;
         		if((lala = tabSimSeek(*tabSim, token)) >= 0){
         			if(lala != 1){
@@ -110,7 +110,7 @@ void ifequ (list <tabSimItem> *tabSim, string nome){
         		nextlineflag = 0;
         	}
         	else {
-        		if(linha.find(';')<1000){
+        		if(linha.find(';')<1000){ //Quando acha um ';', diminiu o tamanho da string ate antes do ';'
         			linha.resize(linha.find(';')-1);
         		}
         		codprep << linha << "\n";
