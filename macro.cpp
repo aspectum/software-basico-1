@@ -63,7 +63,7 @@ int tabSimSeek (list <MacroNameTable> MNT, string token) {
     }
 }
 
-void macro (list <MacroNameTable> *MNT, string nome){
+void macro (list <MacroNameTable> *MNT, string nome){ //Um tanto desses inteiros eu copiei da sua parte e tenho medo de apagar
     ifstream arquivo;
     ofstream codprep,mdt;
     string token,linha,tokenaux;
@@ -73,12 +73,12 @@ void macro (list <MacroNameTable> *MNT, string nome){
 
     arquivo.open("prebin.txt");
     codprep.open("macrobin.txt");
-    mdt.open("mdt.txt");
+    mdt.open("mdt.txt"); //A tabela MDT esta como arquivo texto
     while (getline(arquivo,linha)) {
         stringstream linhaStream(linha);
         mesmalinhaflag = 0;
-        if (macroflag == 1){
-            mdt << linha << '\n';
+        if (macroflag == 1){ //Quando acha a label MACRO, copia as proximas linhas ate o ENDMACRO pro MDT(arquivo texto)
+            mdt << linha << '\n';//E conta a linha pra colocar na MNT
             mdtcont++;
         }
         while(linhaStream >> token){
@@ -87,9 +87,9 @@ void macro (list <MacroNameTable> *MNT, string nome){
                 //separar os argumentos da string da macro
             }
             if((iequals(token,"MACRO") == 1)){//Verifica se o token e um EQU, se for EQU ele manda o label anterior pra tabela
-                macroflag = 1;
+                macroflag = 1;//Seta uma flag de macro = 1
                 mesmalinhaflag = 1;
-                if ((tokenaux.back()) == ':') {
+                if ((tokenaux.back()) == ':') {//Verifica se o token anterior a macro e um label
                     tokenaux.pop_back();
                     simEndereco = tabSimSeek(*MNT, tokenaux);
                     if (simEndereco > 0) {
@@ -102,7 +102,7 @@ void macro (list <MacroNameTable> *MNT, string nome){
                 }else{cout << "Erro";}
             }
             if((iequals(token,"ENDMACRO") == 1)){
-                macroflag = 0;
+                macroflag = 0; //Seta a flag de macro = 0
             }
             tokenaux = token;
         }
