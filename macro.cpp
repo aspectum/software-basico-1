@@ -1,4 +1,6 @@
-/*Falta os erros, comentario, macro. Esta em um arquivo separado mas copiei algumas funcoes que voce usou.*/
+/*Ate agora ele acha a label macro, coloca na tabela MNT. Esta copiando o codigo da macro em um arquivo TXT(MDT) e contando as linhas
+para colocar na MNT(Nao pensei ainda em outra forma melhor de MDT). Ele coloca a linha referente a MDT na MNT. Ainda nao contei
+argumentos nem expandi a macro quando chama.*/
 #include <iostream>
 #include <fstream>                           //Para lidar com o arquivo. Nunca usei isso, então não sei comofas
 #include <string.h>
