@@ -1,41 +1,19 @@
 /*
-• Remover toda a case-sensitividade, mesmo na tabela de símbolos, então usar iequals para comparar string
-- Aparentemente feito. Foi só usar iequals na tabela de símbolos em vez de strcmp
-
-• Desconsiderar tabula¸c˜oes, quebras de linha e espa¸cos desnecess´arios (incluindo quebra de linha depois do r´otulo).
-- Não sei se acontece isso (especialmente quebra de linha dps do rótulo). Verificar dps e fazer mudanças necessárias
-    - Agora ele lida com quebra de linha depois do rótulo. O que acontecia é que a primeira passagem gerava o arquivo (codPreProcessado) e quando tinha quebra
-    de linha dps do rótulo ele gerava linha em branco, aí na 2 passagem ele lia a linha e interpretava errado. Foi necessário adicionar um teste para ver se 
-    a linha lida tem tamanho 0.
-    - Agora está perfeito. Na 1 passagem, ele le token por token (em vez de ler linhas). Desse modo, pode ser até 1 token por linha que ele não fica perdido
-
-• O comando COPY deve utilizar uma v´ırgula entre os operandos SEM ESPAC¸ O (COPY A,B)
-- Muito ridículo isso aqui. Vai precisar modificar o código. Se não me engano para macro vai ser assim tb.
-    - Feito! Na primeira passagem ele detecta o copy, le o prox token (um token so dos 2 parametros com a virgula no meio) e bypassa o algoritmo
-    para passar para o arquivo intermediario manualmente, colocando espaco entre os parametros.
-
-• A diretiva CONST deve aceitar declara¸c˜ao em hexadecimal tamb´em (no formato 0x00);
-- Por enquanto nenhuma diretiva está implementada, mas quando for fazer isso levar em conta.
-
 • Identificar erros durante a montagem.
 - Pegar a lista no roteiro, mas deixa pra se preocupar com isso dps.
 
 • Macro é declarada na seção texto e EQU vem antes de tudo.
 
-• Verificar, na primeira passagem, se o rótulo existe na tabela de símbolos. Se existe, dar erro de símbolo redefinido.
-    - Já dá o erro
+• Tem que verificar erro se não consegue abrir os arquivos
 
 • A primeira passagem está mais complexa do que precisaria ser, mas isso tira complexidade da segunda.
 
-• Comecei a fazer algo das diretivas SPACE e CONST, mas está complicado prever como vão interagir com as seçoes TEXT e DATA. Melhor lidar com as seções primeiro.
-
-PRECISA INTERROMPER A COMPILAÇÃO NOS ERROS!!!
-
-
-git pull
-git add trab.cpp
-git commit -m "mensagem"
-git push
+--------------------------------------VERSAO ATUAL--------------------------------------
+* Aceita o const hexadecimal
+* Faz a operação do LABEL+X (sem espaço antes e depois do +)
+* Aceita parametros da linha de comando
+* Remove o arquivo intermediario
+----------------------------------------------------------------------------------------
 */
 #include <iostream>
 #include <fstream>                           //Para lidar com o arquivo. Nunca usei isso, então não sei comofas
@@ -143,11 +121,6 @@ int getTam (int opCode) {
     }
 }
 
-void inputTemp (string *nome) {
-    cout << "Digite o nome do arquivo \n";
-    cin >> *nome;
-}
-
 void printaTabSimTemp (list <tabSimItem> tabSim) {
     string texto;
     list <tabSimItem> :: iterator it;
@@ -177,20 +150,17 @@ int tabSimSeek (list <tabSimItem> tabSim, string token) {
     }
 }
 
-// Aqui tem que adequar para as diretivas e áreas .text e .data
-// Ele ta supondo que ou é label, ou instrução ou parametro
-// Por enquanto ele está apenas fazendo a tabela de símbolos
-// Gera um arquivo intermediário sem rótulos e comentários
+// Gera um arquivo intermediário sem rótulos
 void primeiraPassagem (list <tabSimItem> *tabSim, string nome) {
     ifstream arquivo;
-    ofstream codPreP;
+    ofstream codInt;
     char colon, semicolon;
     int tamanho, i=0, endereco=0, op=-1, simEndereco=-1, diretiva=-1, flag=0;
     string token;
     tabSimItem SimAtual;
 
     arquivo.open(nome); //O nome do arquivo vai ser passado pelo terminal, então não sei ainda como vai fazer
-    codPreP.open("codPreProcessado.txt");
+    codInt.open("codInt.txt");
     arquivo >> token;
     flag = iequals(token,"SECTION");
     arquivo >> token;
@@ -230,12 +200,12 @@ void primeiraPassagem (list <tabSimItem> *tabSim, string nome) {
                 i = 1;
                 tamanho = getTam(op);
                 if (op == 9) { //caso do copy
-                    codPreP << token << " ";
+                    codInt << token << " ";
                     arquivo >> token;
                     if (token.find(',') == string::npos) {
                         cout << "Erro, onde esta a virgula" << endl;
                     }
-                    codPreP << token.substr(0,token.find(',')) << " " << token.substr(token.find(',')+1,token.length()) << endl;
+                    codInt << token.substr(0,token.find(',')) << " " << token.substr(token.find(',')+1,token.length()) << endl;
                     endereco+=3;
                     continue;
                 }
@@ -243,15 +213,14 @@ void primeiraPassagem (list <tabSimItem> *tabSim, string nome) {
             else if (diretiva > 0) {
                 cout << "Erro, SPACE ou CONST na secao errada" << endl;
             }
-            codPreP << token << " ";
+            codInt << token << " ";
             if (i == tamanho) {
-                codPreP << endl;
+                codInt << endl;
             }
             i++;
             endereco++;
         }
     }
-    // Talvez o endereco esteja defasado por 1?
     if (flag == 1) {
         flag = 0;
         while (arquivo >> token) {
@@ -273,26 +242,26 @@ void primeiraPassagem (list <tabSimItem> *tabSim, string nome) {
                 if (diretiva > 0) {
                     if (diretiva == 102) { //se for CONST
                         if (flag == 1){
-                            codPreP << endl;
+                            codInt << endl;
                         }
-                        codPreP << token << " ";
+                        codInt << token << " ";
                         arquivo >> token;
                         op = getOp(token);
                         diretiva = getDiretiva(token);
                         if ((op > 0) || (diretiva > 0)) {
                             cout << "Erro, esperava a definicao da CONST";
                         }
-                        codPreP << token << endl;
+                        codInt << token << endl;
                         endereco++;
                         flag = 0;
                         continue;
                     }
                     else { //se for SPACE
                         if (flag == 1) {
-                            codPreP << endl;
+                            codInt << endl;
                         }
                         flag = 1;
-                        codPreP << token << " ";
+                        codInt << token << " ";
                         endereco++;
                     }
                 }
@@ -302,8 +271,8 @@ void primeiraPassagem (list <tabSimItem> *tabSim, string nome) {
                 }
                 else {
                     if (flag == 1) {
-                        codPreP << token << endl;
-                        endereco += stoi(token,NULL)-1; //talvez esteja defasado de 1
+                        codInt << token << endl;
+                        endereco += stoi(token,NULL)-1;
                         flag = 0;
                     }
                     else {
@@ -314,7 +283,7 @@ void primeiraPassagem (list <tabSimItem> *tabSim, string nome) {
         }
     }
     arquivo.close();
-    codPreP.close();
+    codInt.close();
 }
 
 // Checar tamanho do token??
@@ -332,16 +301,15 @@ as regras comuns da linguagem C, sendo compostos por letras, n´umeros ou o cara
     }
 }
 
-// WIP
 // Assumindo que está sem labels e sem comentários
-void segundaPassagem (list <tabSimItem> tabSim,string nome) {
+void segundaPassagem (list <tabSimItem> tabSim,string nomeOUT) {
     ifstream arquivo;
     ofstream output;
     int i, op=-1, tamanho=-1, simEndereco=-1, diretiva=-1;
     string token, linha;
 
-    arquivo.open("codPreProcessado.txt"); //O nome do arquivo vai ser passado pelo terminal, então não sei ainda como vai fazer
-    output.open("aout.txt");
+    arquivo.open("codInt.txt"); //O nome do arquivo vai ser passado pelo terminal, então não sei ainda como vai fazer
+    output.open(nomeOUT);
     while (getline(arquivo,linha)) {
         if (linha.length() == 0) {
             continue;
@@ -361,13 +329,24 @@ void segundaPassagem (list <tabSimItem> tabSim,string nome) {
                 i=1;
                 while (linhaStream >> token) {
                     //scanner(token);
-                    simEndereco = tabSimSeek(tabSim, token);
-                    if (simEndereco < 0) {
-                        cout << "Erro, simbolo nao definido: |" << token << "| na linha : ``" << linha << "``" << endl;
+                    if (token.find('+') == string::npos) {
+                        simEndereco = tabSimSeek(tabSim, token);
+                        if (simEndereco < 0) {
+                            cout << "Erro, simbolo nao definido: |" << token << "| na linha : ``" << linha << "``" << endl;
+                        }
+                        else {
+                            output << simEndereco << " ";
+                        }
                     }
                     else {
-                        output << simEndereco << " ";
-                    }
+                        simEndereco = tabSimSeek(tabSim, token.substr(0,token.find('+')));
+                        if (simEndereco < 0) {
+                            cout << "Erro, simbolo nao definido: |" << token.substr(0,token.find('+')) << "| na linha : ``" << linha << "``" << endl;
+                        }
+                        else {
+                            output << simEndereco+stoi(token.substr(token.find('+')+1,token.length()))<< " ";
+                        }
+                    }                    
                     i++;
                 }
                 if (i != tamanho) {
@@ -376,11 +355,16 @@ void segundaPassagem (list <tabSimItem> tabSim,string nome) {
             }
         }
         else {
-            if (diretiva == 102) {
+            if (diretiva == 102) { //const
                 linhaStream >> token;
-                output << stoi(token,NULL) << " ";
+                if ((token.substr(0,2) == "0x") || (token.substr(1,2) == "0x")) { //caso do -0x...
+                    output << stoi(token,NULL,16) << " ";
+                }
+                else {
+                    output << stoi(token,NULL) << " ";
+                }
             }
-            else {
+            else { //space
                 output << 0 << " ";
                 if (linhaStream >> token) {
                     i = 1;
@@ -394,13 +378,29 @@ void segundaPassagem (list <tabSimItem> tabSim,string nome) {
     }
 }
 
-int main () {
+int main (int argc, char* argv[]) {
     list <tabSimItem> tabSim;
-    string nome="bin.asm";
-
+    string nomeIN, nomeOUT;
+    if (argc < 4) {
+        cout <<  "Erro - parametros insuficientes, usando parametros padrao" << endl;
+        nomeIN = "bin.asm";
+        nomeOUT = "aout.txt";
+    }
+    else {
+        if (strcmp(argv[1],"-o") && strcmp(argv[1],"-m") && strcmp(argv[1],"-p")) {
+            cout <<  "Erro - argumentos fora de ordem" << endl;
+            return 0;
+        }
+        nomeIN.assign(argv[2]);
+        nomeIN.append(".asm");
+        nomeOUT.assign(argv[3]);
+        nomeOUT.append(".txt"); //aqui vai depender da operacao
+    }
+    cout << nomeIN << " " << nomeOUT << endl;
     //inputTemp (&nome);
-    primeiraPassagem(&tabSim,nome);
+    primeiraPassagem(&tabSim,nomeIN);
     printaTabSimTemp(tabSim);
-    segundaPassagem(tabSim,nome);
+    segundaPassagem(tabSim,nomeOUT);
+    remove ("codInt.txt");
     return 0;
 }
