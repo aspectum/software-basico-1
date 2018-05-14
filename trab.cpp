@@ -117,7 +117,7 @@ int getOp (string token) {
         return -1;
     }
 }
-/*
+
 int getDiretiva (string token) {
     if (iequals(token,"SPACE") == 1) {
         return 101;
@@ -129,7 +129,7 @@ int getDiretiva (string token) {
         return -1;
     }
 }
-*/
+
 
 int getTam (int opCode) {
     if (opCode == 9) {
@@ -185,15 +185,32 @@ void primeiraPassagem (list <tabSimItem> *tabSim, string nome) {
     ifstream arquivo;
     ofstream codPreP;
     char colon, semicolon;
-    int tamanho, i=0, endereco=0, op=-1, simEndereco=-1;
-    // int diretiva=-1;
+    int tamanho, i=0, endereco=0, op=-1, simEndereco=-1, diretiva=-1, flag=0;
     string token, linha;
     tabSimItem SimAtual;
 
     arquivo.open(nome); //O nome do arquivo vai ser passado pelo terminal, então não sei ainda como vai fazer
     codPreP.open("codPreProcessado.txt");
-    // Procurar por SECTION TEXT aqui?
+    arquivo >> token;
+    flag = iequals(token,"SECTION");
+    arquivo >> token;
+    if ((iequals(token,"TEXT") != 1) || (flag != 1)) {
+        cout << "Erro, não tem section text" << endl;
+    }
+    flag = 0;
     while (arquivo >> token) {
+        if (iequals(token,"SECTION") == 1) {
+            flag = 1;
+            continue;
+        }
+        if (iequals(token,"DATA") == 1) {
+            if (flag == 1) {
+                break;
+            }
+            else {
+                cout << "Erro, definicao de secao errada";
+            }
+        }
         colon = token.back();
         if (colon == ':') {
             token.pop_back();
@@ -208,7 +225,7 @@ void primeiraPassagem (list <tabSimItem> *tabSim, string nome) {
         }
         else {
             op = getOp(token);
-            //diretiva = getDiretiva(token);
+            diretiva = getDiretiva(token);
             if (op > 0) {
                 i = 1;
                 tamanho = getTam(op);
@@ -216,26 +233,81 @@ void primeiraPassagem (list <tabSimItem> *tabSim, string nome) {
                     codPreP << token << " ";
                     arquivo >> token;
                     if (token.find(',') == string::npos) {
-                        cout << "Erro, parametros errados sla" << endl;
+                        cout << "Erro, onde esta a virgula" << endl;
                     }
                     codPreP << token.substr(0,token.find(',')) << " " << token.substr(token.find(',')+1,token.length()) << endl;
                     endereco+=3;
                     continue;
                 }
             }
-            /*
-            if (diretiva > 0) {
-                i = 1;
-                tamanho = getTam(diretiva);
-                endereco--;
+            else if (diretiva > 0) {
+                cout << "Erro, SPACE ou CONST na secao errada" << endl;
             }
-            */
             codPreP << token << " ";
             if (i == tamanho) {
                 codPreP << endl;
             }
             i++;
             endereco++;
+        }
+    }
+    // Talvez o endereco esteja defasado por 1?
+    if (flag == 1) {
+        flag = 0;
+        while (arquivo >> token) {
+            colon = token.back();
+            if (colon == ':') {
+                token.pop_back();
+                simEndereco = tabSimSeek(*tabSim, token);
+                if (simEndereco > 0) {
+                    cout << "Erro, simbolo ja definido: |" << token << endl;
+                }
+                token.push_back('\0');
+                token.copy(SimAtual.label, token.length());
+                SimAtual.endereco = endereco;
+                tabSim->push_back(SimAtual);
+            }
+            else {
+                op = getOp(token);
+                diretiva = getDiretiva(token);
+                if (diretiva > 0) {
+                    if (diretiva == 102) { //se for CONST
+                        codPreP << token << " ";
+                        arquivo >> token;
+                        op = getOp(token);
+                        diretiva = getDiretiva(token);
+                        if ((op > 0) || (diretiva > 0)) {
+                            cout << "Erro, esperava a definicao da CONST";
+                        }
+                        codPreP << token << endl;
+                        endereco++;
+                        flag = 0;
+                        continue;
+                    }
+                    else { //se for SPACE
+                        if (flag == 1) {
+                            codPreP << endl;
+                        }
+                        flag = 1;
+                        codPreP << token << " ";
+                        endereco++;
+                    }
+                }
+                else if (op > 0) {
+                    cout << "Erro, operacao na secao errada" << endl;
+                    flag = 0;
+                }
+                else {
+                    if (flag == 1) {
+                        codPreP << token << endl;
+                        endereco += stoi(token,NULL)-1; //talvez esteja defasado de 1
+                        flag = 0;
+                    }
+                    else {
+                        cout << "Erro, esperava CONST ou SPACE" << endl;
+                    }
+                }                
+            }
         }
     }
     arquivo.close();
@@ -302,7 +374,7 @@ void segundaPassagem (list <tabSimItem> tabSim,string nome) {
 
 int main () {
     list <tabSimItem> tabSim;
-    string nome="teste.asm";
+    string nome="bin.asm";
 
     //inputTemp (&nome);
     primeiraPassagem(&tabSim,nome);
