@@ -186,7 +186,7 @@ void primeiraPassagem (list <tabSimItem> *tabSim, string nome) {
     ofstream codPreP;
     char colon, semicolon;
     int tamanho, i=0, endereco=0, op=-1, simEndereco=-1, diretiva=-1, flag=0;
-    string token, linha;
+    string token;
     tabSimItem SimAtual;
 
     arquivo.open(nome); //O nome do arquivo vai ser passado pelo terminal, então não sei ainda como vai fazer
@@ -272,6 +272,9 @@ void primeiraPassagem (list <tabSimItem> *tabSim, string nome) {
                 diretiva = getDiretiva(token);
                 if (diretiva > 0) {
                     if (diretiva == 102) { //se for CONST
+                        if (flag == 1){
+                            codPreP << endl;
+                        }
                         codPreP << token << " ";
                         arquivo >> token;
                         op = getOp(token);
@@ -334,7 +337,7 @@ as regras comuns da linguagem C, sendo compostos por letras, n´umeros ou o cara
 void segundaPassagem (list <tabSimItem> tabSim,string nome) {
     ifstream arquivo;
     ofstream output;
-    int i, op=-1, tamanho=-1, simEndereco=-1;
+    int i, op=-1, tamanho=-1, simEndereco=-1, diretiva=-1;
     string token, linha;
 
     arquivo.open("codPreProcessado.txt"); //O nome do arquivo vai ser passado pelo terminal, então não sei ainda como vai fazer
@@ -347,26 +350,45 @@ void segundaPassagem (list <tabSimItem> tabSim,string nome) {
         linhaStream >> token;               // Primeiro token da linha, deve obrigatoriamente ser operacao?
         //scanner(token);
         op = getOp(token);
-        tamanho = getTam(op);
-        if (op < 0) {
-            cout << "Erro, operacao invalida: |" << token << "| na linha : ``" << linha << "``" << endl;
+        diretiva = getDiretiva(token);
+        if (diretiva < 0) {
+            tamanho = getTam(op);
+            if (op < 0) {
+                cout << "Erro, operacao invalida: |" << token << "| na linha : ``" << linha << "``" << endl;
+            }
+            else {
+                output << op << " "; // Escreve no arquivo o opcode
+                i=1;
+                while (linhaStream >> token) {
+                    //scanner(token);
+                    simEndereco = tabSimSeek(tabSim, token);
+                    if (simEndereco < 0) {
+                        cout << "Erro, simbolo nao definido: |" << token << "| na linha : ``" << linha << "``" << endl;
+                    }
+                    else {
+                        output << simEndereco << " ";
+                    }
+                    i++;
+                }
+                if (i != tamanho) {
+                    cout << "Erro, numero de operandos diferente da operacao: |" << token << "| na linha : ``" << linha << "``" << endl;
+                }
+            }
         }
         else {
-            output << op << " "; // Escreve no arquivo o opcode
-            i=1;
-            while (linhaStream >> token) {
-                //scanner(token);
-                simEndereco = tabSimSeek(tabSim, token);
-                if (simEndereco < 0) {
-                    cout << "Erro, simbolo nao definido: |" << token << "| na linha : ``" << linha << "``" << endl;
-                }
-                else {
-                    output << simEndereco << " ";
-                }
-                i++;
+            if (diretiva == 102) {
+                linhaStream >> token;
+                output << stoi(token,NULL) << " ";
             }
-            if (i != tamanho) {
-                cout << "Erro, numero de operandos diferente da operacao: |" << token << "| na linha : ``" << linha << "``" << endl;
+            else {
+                output << 0 << " ";
+                if (linhaStream >> token) {
+                    i = 1;
+                    while (i < stoi(token)) {
+                        output << 0 << " ";
+                        i++;
+                    }
+                }
             }
         }
     }
