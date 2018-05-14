@@ -62,46 +62,116 @@ int tabSimSeek (list <tabSimItem> tabSim, string token) {
 
 void ifequ (list <tabSimItem> *tabSim, string nome){//Aqui tem o token e o token aux, sendo o token aux o  token anterior ao token
 	ifstream arquivo;								//Para facilitar quando achar um EQU
-    ofstream codprep;								//Quando for fazer a parte de erros tem que mudar um pouqinho
+    ofstream codprep;								//Quando for fazer a parte de erros tem que mudar um pouqinho	
     string token,linha,tokenaux;					
-    int equflag,ifflag,nextlineflag,i=0, endereco=0, op=-1, simEndereco=-1,lala;
+    int equflag,ifflag,nextlineflag,sectiontextflag,sectiondataflag,flagsimdefinido,contarg;
+    int i=0, endereco=0, op=-1, simEndereco=-1,lala,linhacont,contlabel;
     tabSimItem SimAtual;
 
     arquivo.open("bin.asm");
     codprep.open("prebin.txt");
+    linhacont = 1;
+    sectiontextflag = 0;
+    sectiondataflag = 0;
+    equflag = 0;
+    ifflag = 0;
+    nextlineflag = 0;
+    flagsimdefinido = 0;
+    contarg=0;
+
     while (getline(arquivo,linha)) {
+    	if (linha.length() == 0) {
+    		linhacont++;
+            continue;
+        }
         stringstream linhaStream(linha);
+        contarg = 0;
+        contlabel = 0;
         while(linhaStream >> token){
         	//errotoken
+        	if((token.back()) == ':'){ //Verifica se tem mais de uma label na linha
+        		contlabel++;
+        	}
+			if((iequals(tokenaux,"SECTION") == 1) && iequals(token,"TEXT") == 1){
+				sectiontextflag = 1; //Essa flag mostra que esta na SECTION TEXT
+			}
+			if((iequals(tokenaux,"SECTION") == 1) && iequals(token,"DATA") == 1){
+				sectiontextflag = 0;
+				sectiondataflag = 1; //ESSA flag mostra que esta na SECTION DATA
+			}
         	if((iequals(token,"EQU") == 1)){//Verifica se o token e um EQU, se for EQU ele manda o token aux anterior pra tabela
         		equflag = 1;
-        		if ((tokenaux.back()) == ':') {//Verifica se o tokenaux e uma label, se nao for da erro
-            		tokenaux.pop_back();
-           			simEndereco = tabSimSeek(*tabSim, tokenaux);
-            		if (simEndereco > 0) {
-                		cout << "Erro, simbolo ja definido: |" << tokenaux << endl;
-            		}
-            		tokenaux.push_back('\0');
-            		tokenaux.copy(SimAtual.label, tokenaux.length());
-            		
-       			}else{
-       				cout << "Erro sintatico";
-       			}
+        		if(sectiontextflag == 1 || sectiondataflag == 1){ //Verifica se o equ esta antes de todas as secoes
+        			cout << "Erro semantico - EQU na secao errada. Linha: " << linhacont << endl; // Se nao estiver da erro
+        		}
+        			while(linhaStream >> token){//Pega os proximos tokens da linha do EQU
+        				contarg++;//Conta quantos tokens tem no equ
+        				//erro token
+        				if((token.front()) == ';'){//Quando acha um ponto e virgula ele ignora o resto da linha 
+        					contarg--;
+        					while(linhaStream >> token)
+        					continue;
+        				}else{
+        					if ((tokenaux.back()) == ':' && contarg == 1) {//Verifica se o tokenaux e uma label, se nao for da erro
+            					tokenaux.pop_back(); //tira o :
+           						simEndereco = tabSimSeek(*tabSim, tokenaux); //procura na tabela de simbolo
+            					if (simEndereco > 0) {//verifica se o simbolo ja foi defindo
+            						flagsimdefinido = 1;
+                					cout << "Erro semantico - Simbolo ja definido: " << tokenaux << " Linha: " << linhacont << endl;
+            					}else{
+            						tokenaux.push_back('\0');
+            						tokenaux.copy(SimAtual.label, tokenaux.length());
+            					}
+            					tokenaux.push_back(':');
+       						}else if (contarg == 1){
+       							cout << "Erro sintatico - Token anterior ao EQU nao e um label. Linha: " << linhacont << endl;
+       						}
+       						if(flagsimdefinido == 0 && contarg == 1){
+       							SimAtual.endereco = atoi(token.c_str());
+       							tabSim->push_back(SimAtual);
+       						}else{
+       							flagsimdefinido = 0;
+       						}
+       					}
+       				}
+       				if(contarg == 0){
+       					cout << "Erro sintatico - EQU sem argumentos. Linha: " << linhacont << endl;
+       				}else if (contarg > 1){
+       					cout << "Erro sintatico - EQU com muitos argumentos. Linha: " << linhacont << endl;
+       				}			
         	}
-        	if((iequals(tokenaux,"EQU") == 1)){ //Quando o tokenaux for EQU, ele coloca o token seguinte na tabela
-        		SimAtual.endereco = atoi (token.c_str());
-        		tabSim->push_back(SimAtual);
-        	}
-        	if((iequals(tokenaux,"IF") == 1)){//Quando o tokenaux for IF, ele procura o token seguinte na tabela dos EQU
+         	if((iequals(token,"IF") == 1)){
         		ifflag = 1;
-        		if((lala = tabSimSeek(*tabSim, token)) >= 0){
-        			if(lala != 1){
-        				nextlineflag = 1;
-        			}
+        		if(sectiontextflag != 1){
+        			cout << "Erro semantico - IF secao errada. Linha: " << linhacont << endl;
+        		}
+        		if((tokenaux.length()) != 0){
+        			cout << "Erro sintatico - Tem coisa antes do IF. Linha: " << linhacont << endl;
+        		}
+        		while(linhaStream >> token){	
+        			//erro token
+        			contarg ++;
+        			if((token.front()) == ';'){
+        				contarg--;
+        				while(linhaStream >> token)
+        				continue;
+        			}else if((lala = tabSimSeek(*tabSim, token)) >= 0 && contarg == 1){
+        				if(lala != 1){
+        					nextlineflag = 1;
+        				}
+					}else if(lala == -1 && contarg == 1){
+       					cout << "Erro semantico - Simbolo nao definido. Linha: " << linhacont << endl;
+					}
+        		}
+        		if (contarg == 0){
+        			cout << "Erro sintatico - IF sem argumentos. Linha: " << linhacont << endl;
+        		}else if (contarg > 1){
+        			cout << "Erro sintatico - IF com muitos argumentos. Linha: " << linhacont << endl;
         		}
         	}
         	tokenaux = token;
-        }   
+        }
+        tokenaux.clear();   
         if(equflag == 1 || ifflag == 1){
         	equflag = 0;
         	ifflag = 0;
@@ -116,6 +186,10 @@ void ifequ (list <tabSimItem> *tabSim, string nome){//Aqui tem o token e o token
         		codprep << linha << "\n";
         	}  
         //scanner(token);
+        if(contlabel > 1){
+        	cout << "Erro sintatico - Mais de 1 label na linha. Linha: " << linhacont << endl;
+        }
+        linhacont++;
     }
 }
 
