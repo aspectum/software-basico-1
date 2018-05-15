@@ -1,6 +1,24 @@
 /*
 • Identificar erros durante a montagem.
-- Pegar a lista no roteiro, mas deixa pra se preocupar com isso dps.
+– declara¸c˜oes e r´otulos ausentes;                        OK - SIMBOLO N DEFINIDO
+– declara¸c˜oes e r´otulos repetidos;                       OK - SIMBOLO JA DEFINIDO
+– pulo para r´otulos inv´alidos;                            ?? - VAI DAR O ERRO ACIMA?
+– pulo para se¸c˜ao errada;                                 FALTA FAZER - TALVEZ GUARDAR A PARTIR DE QUAL ENDERECO COMECA A SECAO - TALVEZ FAZER DPS DE ARRUMAR CONTADOR DE LINHA
+– diretivas inv´alidas;                                     ?? - DA ERRO DE OPERACAO INVALIDA (TOKEN DESCONHECIDO)
+– instru¸c˜oes inv´alidas;                                  OK - ACIMA
+– diretivas ou instru¸c˜oes na se¸c˜ao errada;              OK
+– divis˜ao por zero (para constante);                       FALTA FAZER - POSSO MATAR 2 COELHOS: FAZ UM CAMPO NA TABELA DE SIMBOLOS PARA FLAG - TEM UMA FLAG QUANDO EH CONST 0 (PRA ESSE ERRO), OUTRA FLAG PARA SIMBOLO NA SECTION DATA (PULA PRA SECAO ERRADA)
+– instru¸c˜oes com a quantidade de operando inv´alida;      OK
+– tokens inv´alidos;                                        OK
+– dois r´otulos na mesma linha;                             FALTA FAZER
+– se¸c˜ao TEXT faltante;                                    OK
+– se¸c˜ao inv´alida;                                        ?? - SE É SECTION WHATEVER ENTAO ELE PEGA
+– tipo de argumento inv´alido;                              ?? - FALTA FAZER
+– modifica¸c˜ao de um valor constante;                      FALTA FAZER - PODE RESOLVER COM O FLAG NA TABELA DE SIMBOLOS
+                                                            FALTA OS TIPOS DOS ERROS
+
+
+
 
 • Macro é declarada na seção texto e EQU vem antes de tudo.
 
@@ -9,10 +27,7 @@
 • A primeira passagem está mais complexa do que precisaria ser, mas isso tira complexidade da segunda.
 
 --------------------------------------VERSAO ATUAL--------------------------------------
-* Aceita o const hexadecimal
-* Faz a operação do LABEL+X (sem espaço antes e depois do +)
-* Aceita parametros da linha de comando
-* Remove o arquivo intermediario
+* Analisador lexico implementado
 ----------------------------------------------------------------------------------------
 */
 #include <iostream>
@@ -28,6 +43,7 @@ using namespace std;
 typedef struct tabSimItem_s {
     char label[20];
     int endereco;
+    char tipo = '0';
 } tabSimItem;
 
 // As duas funcoes abaixo https://stackoverflow.com/a/23944175
@@ -155,7 +171,7 @@ void primeiraPassagem (list <tabSimItem> *tabSim, string nome) {
     ifstream arquivo;
     ofstream codInt;
     char colon, semicolon;
-    int tamanho, i=0, endereco=0, op=-1, simEndereco=-1, diretiva=-1, flag=0;
+    int tamanho, i=0, endereco=0, op=-1, simEndereco=-1, diretiva=-1, flag=0, rotDuploFlag=0;
     string token;
     tabSimItem SimAtual;
 
@@ -183,6 +199,9 @@ void primeiraPassagem (list <tabSimItem> *tabSim, string nome) {
         }
         colon = token.back();
         if (colon == ':') {
+            if (rotDuploFlag) {
+                cout << "Erro, rotulo duplo: " << token << endl;
+            }
             token.pop_back();
             simEndereco = tabSimSeek(*tabSim, token);
             if (simEndereco > 0) {
@@ -192,8 +211,10 @@ void primeiraPassagem (list <tabSimItem> *tabSim, string nome) {
             token.copy(SimAtual.label, token.length());
             SimAtual.endereco = endereco;
             tabSim->push_back(SimAtual);
+            rotDuploFlag = 1;
         }
         else {
+            rotDuploFlag = 0;
             op = getOp(token);
             diretiva = getDiretiva(token);
             if (op > 0) {
@@ -290,14 +311,24 @@ void primeiraPassagem (list <tabSimItem> *tabSim, string nome) {
 // Quais caracteres especiais pode ter?
 // Dar um jeito de parar tudo quando der erro e printar warning
 void scanner (string token) {
-    /* Os identificadores de vari´aveis e r´otulos s˜ao limitados em 20 caracteres e seguem
-as regras comuns da linguagem C, sendo compostos por letras, n´umeros ou o caractere
-(underscore) e com a restri¸c˜ao de que o primeiro caractere n˜ao pode ser um n´umero.*/
-    if (!isalpha(token[0])) {
-        // PARA TUDO, ERRO LÉXICO
-    }
-    else {
+    int i=0, flag=0;
 
+    if (!isalpha(token[0])) {
+        cout << "Erro lexico, primeiro caracter deve ser uma letra: " << token << endl;
+    }
+    if (token.length() > 20) { //isso é 19,20 ou 21?
+        cout << "Erro lexico, token muito longo: " << token << endl;
+    }
+    while (i < (token.length())) {
+        if (!isalnum(token[i])) {
+            if (token[i] != '_'){
+                flag = 1;
+            }
+        }
+        i++;
+    }
+    if (flag) {
+        cout << "Erro lexico, token possui caracteres invalidos: " << token << endl;
     }
 }
 
@@ -316,7 +347,7 @@ void segundaPassagem (list <tabSimItem> tabSim,string nomeOUT) {
         }
         stringstream linhaStream(linha);
         linhaStream >> token;               // Primeiro token da linha, deve obrigatoriamente ser operacao?
-        //scanner(token);
+        scanner(token);
         op = getOp(token);
         diretiva = getDiretiva(token);
         if (diretiva < 0) {
@@ -328,7 +359,7 @@ void segundaPassagem (list <tabSimItem> tabSim,string nomeOUT) {
                 output << op << " "; // Escreve no arquivo o opcode
                 i=1;
                 while (linhaStream >> token) {
-                    //scanner(token);
+                    scanner(token);
                     if (token.find('+') == string::npos) {
                         simEndereco = tabSimSeek(tabSim, token);
                         if (simEndereco < 0) {
@@ -401,6 +432,6 @@ int main (int argc, char* argv[]) {
     primeiraPassagem(&tabSim,nomeIN);
     printaTabSimTemp(tabSim);
     segundaPassagem(tabSim,nomeOUT);
-    remove ("codInt.txt");
+    //remove ("codInt.txt");
     return 0;
 }
