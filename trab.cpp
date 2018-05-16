@@ -3,18 +3,18 @@
 – declara¸c˜oes e r´otulos ausentes;                        OK - SIMBOLO N DEFINIDO
 – declara¸c˜oes e r´otulos repetidos;                       OK - SIMBOLO JA DEFINIDO
 – pulo para r´otulos inv´alidos;                            ?? - VAI DAR O ERRO ACIMA?
-– pulo para se¸c˜ao errada;                                 FALTA FAZER - TALVEZ GUARDAR A PARTIR DE QUAL ENDERECO COMECA A SECAO - TALVEZ FAZER DPS DE ARRUMAR CONTADOR DE LINHA
+– pulo para se¸c˜ao errada;                                 OK
 – diretivas inv´alidas;                                     ?? - DA ERRO DE OPERACAO INVALIDA (TOKEN DESCONHECIDO)
 – instru¸c˜oes inv´alidas;                                  OK - ACIMA
 – diretivas ou instru¸c˜oes na se¸c˜ao errada;              OK
-– divis˜ao por zero (para constante);                       FALTA FAZER - POSSO MATAR 2 COELHOS: FAZ UM CAMPO NA TABELA DE SIMBOLOS PARA FLAG - TEM UMA FLAG QUANDO EH CONST 0 (PRA ESSE ERRO), OUTRA FLAG PARA SIMBOLO NA SECTION DATA (PULA PRA SECAO ERRADA)
+– divis˜ao por zero (para constante);                       OK
 – instru¸c˜oes com a quantidade de operando inv´alida;      OK
 – tokens inv´alidos;                                        OK
-– dois r´otulos na mesma linha;                             FALTA FAZER
+– dois r´otulos na mesma linha;                             OK
 – se¸c˜ao TEXT faltante;                                    OK
 – se¸c˜ao inv´alida;                                        ?? - SE É SECTION WHATEVER ENTAO ELE PEGA
 – tipo de argumento inv´alido;                              ?? - FALTA FAZER
-– modifica¸c˜ao de um valor constante;                      FALTA FAZER - PODE RESOLVER COM O FLAG NA TABELA DE SIMBOLOS
+– modifica¸c˜ao de um valor constante;                      OK
                                                             FALTA OS TIPOS DOS ERROS
 
 
@@ -27,7 +27,10 @@
 • A primeira passagem está mais complexa do que precisaria ser, mas isso tira complexidade da segunda.
 
 --------------------------------------VERSAO ATUAL--------------------------------------
-* Analisador lexico implementado
+* Erro rotulo duplo
+* Erro pulo pra secao DATA
+* Erro modificacao de CONST
+* Erro divisao por 0
 ----------------------------------------------------------------------------------------
 */
 #include <iostream>
@@ -40,10 +43,17 @@
 
 using namespace std;
 
+/*
+O campo tipo é uma flag
+'X' - valor padrao
+'0' - const 0 (não pode dividir por nem modificar)
+'C' - const (não pode modificar)
+'D' - label na seção data (não pode dar jump)
+*/
 typedef struct tabSimItem_s {
     char label[20];
     int endereco;
-    char tipo = '0';
+    char tipo = 'X';
 } tabSimItem;
 
 // As duas funcoes abaixo https://stackoverflow.com/a/23944175
@@ -144,23 +154,29 @@ void printaTabSimTemp (list <tabSimItem> tabSim) {
     it = tabSim.begin();
     while (it != tabSim.end()) {
         texto = it->label;
-        cout << "Label: " << texto << "\tEndereco: " << it->endereco << endl;
+        cout << "Label: " << texto << "\tEndereco: " << it->endereco << "\tTipo: " << it->tipo << endl;
         it++;
     }
 }
 
-int tabSimSeek (list <tabSimItem> tabSim, string token) {
+int tabSimSeek (list <tabSimItem> tabSim, string token, char* tipo) {
     list <tabSimItem> :: iterator it;
 
     it = tabSim.begin();
     while (1) {
         if (it == tabSim.end()) {
+            if (tipo != NULL) {
+                *tipo = 'E';
+            }
             return -1;
         }
         else if (iequals(token.c_str(),it->label) != 1) {
             it++;
         }
         else {
+            if (tipo != NULL) {
+              *tipo = it->tipo;
+            }
             return it->endereco;
         }
     }
@@ -203,7 +219,7 @@ void primeiraPassagem (list <tabSimItem> *tabSim, string nome) {
                 cout << "Erro, rotulo duplo: " << token << endl;
             }
             token.pop_back();
-            simEndereco = tabSimSeek(*tabSim, token);
+            simEndereco = tabSimSeek(*tabSim,token,NULL);
             if (simEndereco > 0) {
                 cout << "Erro, simbolo ja definido: |" << token << endl;
             }
@@ -248,13 +264,14 @@ void primeiraPassagem (list <tabSimItem> *tabSim, string nome) {
             colon = token.back();
             if (colon == ':') {
                 token.pop_back();
-                simEndereco = tabSimSeek(*tabSim, token);
+                simEndereco = tabSimSeek(*tabSim,token,NULL);
                 if (simEndereco > 0) {
                     cout << "Erro, simbolo ja definido: |" << token << endl;
                 }
                 token.push_back('\0');
                 token.copy(SimAtual.label, token.length());
                 SimAtual.endereco = endereco;
+                SimAtual.tipo = 'D';
                 tabSim->push_back(SimAtual);
             }
             else {
@@ -272,6 +289,14 @@ void primeiraPassagem (list <tabSimItem> *tabSim, string nome) {
                         if ((op > 0) || (diretiva > 0)) {
                             cout << "Erro, esperava a definicao da CONST";
                         }
+                        if ((stoi(token,NULL) == 0) || (stoi(token,NULL,16) == 0)) {
+                            SimAtual.tipo = '0';
+                        }
+                        else {
+                            SimAtual.tipo = 'C';
+                        }
+                        tabSim->pop_back();
+                        tabSim->push_back(SimAtual);
                         codInt << token << endl;
                         endereco++;
                         flag = 0;
@@ -313,8 +338,8 @@ void primeiraPassagem (list <tabSimItem> *tabSim, string nome) {
 void scanner (string token) {
     int i=0, flag=0;
 
-    if (!isalpha(token[0])) {
-        cout << "Erro lexico, primeiro caracter deve ser uma letra: " << token << endl;
+    if ((!isalpha(token[0])) && token[0] != '_') {
+        cout << "Erro lexico, primeiro caracter deve ser uma letra ou underscore: " << token << endl;
     }
     if (token.length() > 20) { //isso é 19,20 ou 21?
         cout << "Erro lexico, token muito longo: " << token << endl;
@@ -336,7 +361,8 @@ void scanner (string token) {
 void segundaPassagem (list <tabSimItem> tabSim,string nomeOUT) {
     ifstream arquivo;
     ofstream output;
-    int i, op=-1, tamanho=-1, simEndereco=-1, diretiva=-1;
+    int i, op=-1, tamanho=-1, simEndereco=-1, diretiva=-1, flag=0;
+    char tipo='Z';
     string token, linha;
 
     arquivo.open("codInt.txt"); //O nome do arquivo vai ser passado pelo terminal, então não sei ainda como vai fazer
@@ -361,7 +387,7 @@ void segundaPassagem (list <tabSimItem> tabSim,string nomeOUT) {
                 while (linhaStream >> token) {
                     scanner(token);
                     if (token.find('+') == string::npos) {
-                        simEndereco = tabSimSeek(tabSim, token);
+                        simEndereco = tabSimSeek(tabSim,token,&tipo);
                         if (simEndereco < 0) {
                             cout << "Erro, simbolo nao definido: |" << token << "| na linha : ``" << linha << "``" << endl;
                         }
@@ -370,13 +396,40 @@ void segundaPassagem (list <tabSimItem> tabSim,string nomeOUT) {
                         }
                     }
                     else {
-                        simEndereco = tabSimSeek(tabSim, token.substr(0,token.find('+')));
+                        simEndereco = tabSimSeek(tabSim, token.substr(0,token.find('+')),&tipo);
                         if (simEndereco < 0) {
                             cout << "Erro, simbolo nao definido: |" << token.substr(0,token.find('+')) << "| na linha : ``" << linha << "``" << endl;
                         }
                         else {
                             output << simEndereco+stoi(token.substr(token.find('+')+1,token.length()))<< " ";
                         }
+                    }
+                    if ((op == 6) || (op == 7) || (op == 8)) { //jumps
+                        if ((tipo == 'C') || (tipo == '0') || (tipo == 'D')) {
+                            cout << "Erro, pulo para secao data" << endl;
+                        }
+                    }
+                    else if (op == 4) { //div
+                        if (tipo == '0') {
+                            cout << "Erro, divisao por 0" << endl;
+                        }
+                    }
+                    else if ((op == 11) || (op == 12)) { //store e input
+                        if ((tipo == 'C') || (tipo == '0')) {
+                            cout << "Erro, tentativa de modificar valor constante" << endl;
+                        }
+                    }
+                    else if (op == 9) { //copy
+                        if (flag) { //pegando o segundo argumento (destino)
+                            if ((tipo == 'C') || (tipo == '0')) {
+                                cout << "Erro, tentativa de modificar valor constante" << endl;
+                            }
+                            flag = 0;
+                        }
+                        else {
+                            flag = 1;
+                        }
+                        
                     }                    
                     i++;
                 }
@@ -399,7 +452,7 @@ void segundaPassagem (list <tabSimItem> tabSim,string nomeOUT) {
                 output << 0 << " ";
                 if (linhaStream >> token) {
                     i = 1;
-                    while (i < stoi(token)) {
+                    while (i < stoi(token,NULL)) {
                         output << 0 << " ";
                         i++;
                     }
