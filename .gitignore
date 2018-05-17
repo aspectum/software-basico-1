@@ -1,0 +1,10 @@
+.vscode/*
+*.asm
+*.o
+*.obj
+*.exe
+*.out
+*.app
+*.txt
+teste
+trab

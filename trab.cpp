@@ -27,10 +27,7 @@
 • A primeira passagem está mais complexa do que precisaria ser, mas isso tira complexidade da segunda.
 
 --------------------------------------VERSAO ATUAL--------------------------------------
-* Erro rotulo duplo
-* Erro pulo pra secao DATA
-* Erro modificacao de CONST
-* Erro divisao por 0
+* Não utiliza mais arquivo intermediário, usa uma lista de string
 ----------------------------------------------------------------------------------------
 */
 #include <iostream>
@@ -53,10 +50,10 @@ O campo tipo é uma flag
 typedef struct tabSimItem_s {
     char label[20];
     int endereco;
-    char tipo = 'X';
+    char flagTipo = 'X';
 } tabSimItem;
 
-// As duas funcoes abaixo https://stackoverflow.com/a/23944175
+// As duas funcoes abaixo (icompare_pred e iequals) https://stackoverflow.com/a/23944175
 // Servem para fazer uma comparacao case insensitive de strings
 bool icompare_pred(unsigned char a, unsigned char b)
 {
@@ -154,7 +151,17 @@ void printaTabSimTemp (list <tabSimItem> tabSim) {
     it = tabSim.begin();
     while (it != tabSim.end()) {
         texto = it->label;
-        cout << "Label: " << texto << "\tEndereco: " << it->endereco << "\tTipo: " << it->tipo << endl;
+        cout << "Label: " << texto << "\tEndereco: " << it->endereco << "\tTipo: " << it->flagTipo << endl;
+        it++;
+    }
+}
+
+void printaTemp (list <string> programa) {
+    list <string> :: iterator it;
+
+    it = programa.begin();
+    while (it != programa.end()) {
+        cout << *it << endl;
         it++;
     }
 }
@@ -175,7 +182,7 @@ int tabSimSeek (list <tabSimItem> tabSim, string token, char* tipo) {
         }
         else {
             if (tipo != NULL) {
-              *tipo = it->tipo;
+              *tipo = it->flagTipo;
             }
             return it->endereco;
         }
@@ -183,16 +190,14 @@ int tabSimSeek (list <tabSimItem> tabSim, string token, char* tipo) {
 }
 
 // Gera um arquivo intermediário sem rótulos
-void primeiraPassagem (list <tabSimItem> *tabSim, string nome) {
+void primeiraPassagem (list <tabSimItem> *tabSim, list <string> *programa, string nome) {
     ifstream arquivo;
-    ofstream codInt;
     char colon, semicolon;
     int tamanho, i=0, endereco=0, op=-1, simEndereco=-1, diretiva=-1, flag=0, rotDuploFlag=0;
-    string token;
+    string token, linha;
     tabSimItem SimAtual;
 
-    arquivo.open(nome); //O nome do arquivo vai ser passado pelo terminal, então não sei ainda como vai fazer
-    codInt.open("codInt.txt");
+    arquivo.open(nome);
     arquivo >> token;
     flag = iequals(token,"SECTION");
     arquivo >> token;
@@ -237,12 +242,17 @@ void primeiraPassagem (list <tabSimItem> *tabSim, string nome) {
                 i = 1;
                 tamanho = getTam(op);
                 if (op == 9) { //caso do copy
-                    codInt << token << " ";
+                    linha.append(token);
+                    linha.push_back(' ');
                     arquivo >> token;
                     if (token.find(',') == string::npos) {
                         cout << "Erro, onde esta a virgula" << endl;
                     }
-                    codInt << token.substr(0,token.find(',')) << " " << token.substr(token.find(',')+1,token.length()) << endl;
+                    linha.append(token.substr(0,token.find(',')));
+                    linha.push_back(' ');
+                    linha.append(token.substr(token.find(',')+1,token.length()));
+                    programa->push_back(linha);
+                    linha.clear();
                     endereco+=3;
                     continue;
                 }
@@ -250,9 +260,11 @@ void primeiraPassagem (list <tabSimItem> *tabSim, string nome) {
             else if (diretiva > 0) {
                 cout << "Erro, SPACE ou CONST na secao errada" << endl;
             }
-            codInt << token << " ";
+            linha.append(token);
+            linha.push_back(' ');
             if (i == tamanho) {
-                codInt << endl;
+                programa->push_back(linha);
+                linha.clear();
             }
             i++;
             endereco++;
@@ -271,7 +283,7 @@ void primeiraPassagem (list <tabSimItem> *tabSim, string nome) {
                 token.push_back('\0');
                 token.copy(SimAtual.label, token.length());
                 SimAtual.endereco = endereco;
-                SimAtual.tipo = 'D';
+                SimAtual.flagTipo = 'D';
                 tabSim->push_back(SimAtual);
             }
             else {
@@ -280,9 +292,11 @@ void primeiraPassagem (list <tabSimItem> *tabSim, string nome) {
                 if (diretiva > 0) {
                     if (diretiva == 102) { //se for CONST
                         if (flag == 1){
-                            codInt << endl;
+                            programa->push_back(linha);
+                            linha.clear();
                         }
-                        codInt << token << " ";
+                        linha.append(token);
+                        linha.push_back(' ');
                         arquivo >> token;
                         op = getOp(token);
                         diretiva = getDiretiva(token);
@@ -290,24 +304,28 @@ void primeiraPassagem (list <tabSimItem> *tabSim, string nome) {
                             cout << "Erro, esperava a definicao da CONST";
                         }
                         if ((stoi(token,NULL) == 0) || (stoi(token,NULL,16) == 0)) {
-                            SimAtual.tipo = '0';
+                            SimAtual.flagTipo = '0';
                         }
                         else {
-                            SimAtual.tipo = 'C';
+                            SimAtual.flagTipo = 'C';
                         }
                         tabSim->pop_back();
                         tabSim->push_back(SimAtual);
-                        codInt << token << endl;
+                        linha.append(token);
+                        programa->push_back(linha);
+                        linha.clear();
                         endereco++;
                         flag = 0;
                         continue;
                     }
                     else { //se for SPACE
                         if (flag == 1) {
-                            codInt << endl;
+                            programa->push_back(linha);
+                            linha.clear();
                         }
                         flag = 1;
-                        codInt << token << " ";
+                        linha.append(token);
+                        linha.push_back(' ');
                         endereco++;
                     }
                 }
@@ -317,7 +335,9 @@ void primeiraPassagem (list <tabSimItem> *tabSim, string nome) {
                 }
                 else {
                     if (flag == 1) {
-                        codInt << token << endl;
+                        linha.append(token);
+                        programa->push_back(linha);
+                        linha.clear();
                         endereco += stoi(token,NULL)-1;
                         flag = 0;
                     }
@@ -328,13 +348,13 @@ void primeiraPassagem (list <tabSimItem> *tabSim, string nome) {
             }
         }
     }
+    if (linha.length() != 0) {
+        programa->push_back(linha);
+        linha.clear();
+    }
     arquivo.close();
-    codInt.close();
 }
 
-// Checar tamanho do token??
-// Quais caracteres especiais pode ter?
-// Dar um jeito de parar tudo quando der erro e printar warning
 void scanner (string token) {
     int i=0, flag=0;
 
@@ -358,20 +378,20 @@ void scanner (string token) {
 }
 
 // Assumindo que está sem labels e sem comentários
-void segundaPassagem (list <tabSimItem> tabSim,string nomeOUT) {
-    ifstream arquivo;
+void segundaPassagem (list <tabSimItem> tabSim, list <string> programa, string nomeOUT) {
     ofstream output;
     int i, op=-1, tamanho=-1, simEndereco=-1, diretiva=-1, flag=0;
     char tipo='Z';
     string token, linha;
-
-    arquivo.open("codInt.txt"); //O nome do arquivo vai ser passado pelo terminal, então não sei ainda como vai fazer
+    list <string> :: iterator it;
     output.open(nomeOUT);
-    while (getline(arquivo,linha)) {
-        if (linha.length() == 0) {
+
+    it = programa.begin();
+    while (it != programa.end()) {
+        if (it->length() == 0) {
             continue;
         }
-        stringstream linhaStream(linha);
+        stringstream linhaStream(*it);
         linhaStream >> token;               // Primeiro token da linha, deve obrigatoriamente ser operacao?
         scanner(token);
         op = getOp(token);
@@ -459,11 +479,13 @@ void segundaPassagem (list <tabSimItem> tabSim,string nomeOUT) {
                 }
             }
         }
+        it++;
     }
 }
 
 int main (int argc, char* argv[]) {
     list <tabSimItem> tabSim;
+    list <string> programa;
     string nomeIN, nomeOUT;
     if (argc < 4) {
         cout <<  "Erro - parametros insuficientes, usando parametros padrao" << endl;
@@ -482,9 +504,9 @@ int main (int argc, char* argv[]) {
     }
     cout << nomeIN << " " << nomeOUT << endl;
     //inputTemp (&nome);
-    primeiraPassagem(&tabSim,nomeIN);
+    primeiraPassagem(&tabSim,&programa,nomeIN);
     printaTabSimTemp(tabSim);
-    segundaPassagem(tabSim,nomeOUT);
-    //remove ("codInt.txt");
+    segundaPassagem(tabSim,programa,nomeOUT);
+    //printaTemp(programa);
     return 0;
 }
