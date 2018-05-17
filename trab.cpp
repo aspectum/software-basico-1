@@ -27,7 +27,9 @@
 • A primeira passagem está mais complexa do que precisaria ser, mas isso tira complexidade da segunda.
 
 --------------------------------------VERSAO ATUAL--------------------------------------
-* Não utiliza mais arquivo intermediário, usa uma lista de string
+* Adicionado erro de tentar modificar endereço de memória que não é dado (label de jump)
+* Mudança nos nomes de algumas variáveis para deixar mais mnemônico
+* Coloquei o tipo da maioria dos erros
 ----------------------------------------------------------------------------------------
 */
 #include <iostream>
@@ -131,7 +133,6 @@ int getDiretiva (string token) {
     }
 }
 
-
 int getTam (int opCode) {
     if (opCode == 9) {
         return 3;
@@ -190,52 +191,52 @@ int tabSimSeek (list <tabSimItem> tabSim, string token, char* tipo) {
 }
 
 // Gera um arquivo intermediário sem rótulos
-void primeiraPassagem (list <tabSimItem> *tabSim, list <string> *programa, string nome) {
+void primeiraPassagem (list <tabSimItem> *tabSim, list <string> *programa, string nomeIN) {
     ifstream arquivo;
     char colon, semicolon;
-    int tamanho, i=0, endereco=0, op=-1, simEndereco=-1, diretiva=-1, flag=0, rotDuploFlag=0;
+    int tamanho, i=0, endereco=0, op=-1, simEndereco=-1, diretiva=-1, flagSection=0, flagNovaLinha, flagLabelDuplo=0;
     string token, linha;
     tabSimItem SimAtual;
 
-    arquivo.open(nome);
+    arquivo.open(nomeIN);
     arquivo >> token;
-    flag = iequals(token,"SECTION");
+    flagSection = iequals(token,"SECTION");
     arquivo >> token;
-    if ((iequals(token,"TEXT") != 1) || (flag != 1)) {
-        cout << "Erro, não tem section text" << endl;
+    if ((iequals(token,"TEXT") != 1) || (flagSection != 1)) {
+        cout << "Erro, não tem section text" << endl; //qual erro
     }
-    flag = 0;
+    flagSection = 0;
     while (arquivo >> token) {
         if (iequals(token,"SECTION") == 1) {
-            flag = 1;
+            flagSection = 1;
             continue;
         }
         if (iequals(token,"DATA") == 1) {
-            if (flag == 1) {
+            if (flagSection == 1) {
                 break;
             }
             else {
-                cout << "Erro, definicao de secao errada";
+                cout << "Erro sintatico, definicao de secao errada"; //qual erro
             }
         }
         colon = token.back();
         if (colon == ':') {
-            if (rotDuploFlag) {
-                cout << "Erro, rotulo duplo: " << token << endl;
+            if (flagLabelDuplo) {
+                cout << "Erro sintatico, dois rotulos para uma mesma linha: " << token << endl;
             }
             token.pop_back();
             simEndereco = tabSimSeek(*tabSim,token,NULL);
             if (simEndereco > 0) {
-                cout << "Erro, simbolo ja definido: |" << token << endl;
+                cout << "Erro semantico, simbolo ja definido: |" << token << endl;
             }
             token.push_back('\0');
             token.copy(SimAtual.label, token.length());
             SimAtual.endereco = endereco;
             tabSim->push_back(SimAtual);
-            rotDuploFlag = 1;
+            flagLabelDuplo = 1;
         }
         else {
-            rotDuploFlag = 0;
+            flagLabelDuplo = 0;
             op = getOp(token);
             diretiva = getDiretiva(token);
             if (op > 0) {
@@ -246,7 +247,7 @@ void primeiraPassagem (list <tabSimItem> *tabSim, list <string> *programa, strin
                     linha.push_back(' ');
                     arquivo >> token;
                     if (token.find(',') == string::npos) {
-                        cout << "Erro, onde esta a virgula" << endl;
+                        cout << "Erro sintatico, esperava virgula como separador dos operandos" << endl;
                     }
                     linha.append(token.substr(0,token.find(',')));
                     linha.push_back(' ');
@@ -258,7 +259,7 @@ void primeiraPassagem (list <tabSimItem> *tabSim, list <string> *programa, strin
                 }
             }
             else if (diretiva > 0) {
-                cout << "Erro, SPACE ou CONST na secao errada" << endl;
+                cout << "Erro semantico, SPACE ou CONST na secao TEXT" << endl;
             }
             linha.append(token);
             linha.push_back(' ');
@@ -270,15 +271,15 @@ void primeiraPassagem (list <tabSimItem> *tabSim, list <string> *programa, strin
             endereco++;
         }
     }
-    if (flag == 1) {
-        flag = 0;
+    if (flagSection == 1) {
+        flagNovaLinha = 0;
         while (arquivo >> token) {
             colon = token.back();
             if (colon == ':') {
                 token.pop_back();
                 simEndereco = tabSimSeek(*tabSim,token,NULL);
                 if (simEndereco > 0) {
-                    cout << "Erro, simbolo ja definido: |" << token << endl;
+                    cout << "Erro semantico, simbolo ja definido: |" << token << endl;
                 }
                 token.push_back('\0');
                 token.copy(SimAtual.label, token.length());
@@ -291,7 +292,7 @@ void primeiraPassagem (list <tabSimItem> *tabSim, list <string> *programa, strin
                 diretiva = getDiretiva(token);
                 if (diretiva > 0) {
                     if (diretiva == 102) { //se for CONST
-                        if (flag == 1){
+                        if (flagNovaLinha == 1){
                             programa->push_back(linha);
                             linha.clear();
                         }
@@ -301,7 +302,7 @@ void primeiraPassagem (list <tabSimItem> *tabSim, list <string> *programa, strin
                         op = getOp(token);
                         diretiva = getDiretiva(token);
                         if ((op > 0) || (diretiva > 0)) {
-                            cout << "Erro, esperava a definicao da CONST";
+                            cout << "Erro sintatico, esperava a definicao da CONST";
                         }
                         if ((stoi(token,NULL) == 0) || (stoi(token,NULL,16) == 0)) {
                             SimAtual.flagTipo = '0';
@@ -315,34 +316,34 @@ void primeiraPassagem (list <tabSimItem> *tabSim, list <string> *programa, strin
                         programa->push_back(linha);
                         linha.clear();
                         endereco++;
-                        flag = 0;
+                        flagNovaLinha = 0;
                         continue;
                     }
                     else { //se for SPACE
-                        if (flag == 1) {
+                        if (flagNovaLinha == 1) {
                             programa->push_back(linha);
                             linha.clear();
                         }
-                        flag = 1;
+                        flagNovaLinha = 1;
                         linha.append(token);
                         linha.push_back(' ');
                         endereco++;
                     }
                 }
                 else if (op > 0) {
-                    cout << "Erro, operacao na secao errada" << endl;
-                    flag = 0;
+                    cout << "Erro semantico, instrucao na secao DATA" << endl;
+                    flagNovaLinha = 0;
                 }
                 else {
-                    if (flag == 1) {
+                    if (flagNovaLinha == 1) {
                         linha.append(token);
                         programa->push_back(linha);
                         linha.clear();
                         endereco += stoi(token,NULL)-1;
-                        flag = 0;
+                        flagNovaLinha = 0;
                     }
                     else {
-                        cout << "Erro, esperava CONST ou SPACE" << endl;
+                        cout << "Erro sintatico, esperava CONST ou SPACE" << endl; //qual erro
                     }
                 }                
             }
@@ -356,23 +357,23 @@ void primeiraPassagem (list <tabSimItem> *tabSim, list <string> *programa, strin
 }
 
 void scanner (string token) {
-    int i=0, flag=0;
+    int i=0, flagCharInv=0;
 
     if ((!isalpha(token[0])) && token[0] != '_') {
         cout << "Erro lexico, primeiro caracter deve ser uma letra ou underscore: " << token << endl;
     }
-    if (token.length() > 20) { //isso é 19,20 ou 21?
+    if (token.length() > 20) {
         cout << "Erro lexico, token muito longo: " << token << endl;
     }
     while (i < (token.length())) {
         if (!isalnum(token[i])) {
             if (token[i] != '_'){
-                flag = 1;
+                flagCharInv = 1;
             }
         }
         i++;
     }
-    if (flag) {
+    if (flagCharInv) {
         cout << "Erro lexico, token possui caracteres invalidos: " << token << endl;
     }
 }
@@ -384,8 +385,8 @@ void segundaPassagem (list <tabSimItem> tabSim, list <string> programa, string n
     char tipo='Z';
     string token, linha;
     list <string> :: iterator it;
-    output.open(nomeOUT);
 
+    output.open(nomeOUT);
     it = programa.begin();
     while (it != programa.end()) {
         if (it->length() == 0) {
@@ -399,7 +400,7 @@ void segundaPassagem (list <tabSimItem> tabSim, list <string> programa, string n
         if (diretiva < 0) {
             tamanho = getTam(op);
             if (op < 0) {
-                cout << "Erro, operacao invalida: |" << token << "| na linha : ``" << linha << "``" << endl;
+                cout << "Erro sintatico, operacao invalida: |" << token << "| na linha : ``" << linha << "``" << endl;
             }
             else {
                 output << op << " "; // Escreve no arquivo o opcode
@@ -409,7 +410,7 @@ void segundaPassagem (list <tabSimItem> tabSim, list <string> programa, string n
                     if (token.find('+') == string::npos) {
                         simEndereco = tabSimSeek(tabSim,token,&tipo);
                         if (simEndereco < 0) {
-                            cout << "Erro, simbolo nao definido: |" << token << "| na linha : ``" << linha << "``" << endl;
+                            cout << "Erro semantico, simbolo nao definido: |" << token << "| na linha : ``" << linha << "``" << endl; //qual erro
                         }
                         else {
                             output << simEndereco << " ";
@@ -418,7 +419,7 @@ void segundaPassagem (list <tabSimItem> tabSim, list <string> programa, string n
                     else {
                         simEndereco = tabSimSeek(tabSim, token.substr(0,token.find('+')),&tipo);
                         if (simEndereco < 0) {
-                            cout << "Erro, simbolo nao definido: |" << token.substr(0,token.find('+')) << "| na linha : ``" << linha << "``" << endl;
+                            cout << "Erro semantico, simbolo nao definido: |" << token.substr(0,token.find('+')) << "| na linha : ``" << linha << "``" << endl; //qual erro
                         }
                         else {
                             output << simEndereco+stoi(token.substr(token.find('+')+1,token.length()))<< " ";
@@ -426,23 +427,29 @@ void segundaPassagem (list <tabSimItem> tabSim, list <string> programa, string n
                     }
                     if ((op == 6) || (op == 7) || (op == 8)) { //jumps
                         if ((tipo == 'C') || (tipo == '0') || (tipo == 'D')) {
-                            cout << "Erro, pulo para secao data" << endl;
+                            cout << "Erro semantico, pulo para secao data" << endl;
                         }
                     }
                     else if (op == 4) { //div
                         if (tipo == '0') {
-                            cout << "Erro, divisao por 0" << endl;
+                            cout << "Erro semantico, divisao por 0" << endl;
                         }
                     }
                     else if ((op == 11) || (op == 12)) { //store e input
                         if ((tipo == 'C') || (tipo == '0')) {
-                            cout << "Erro, tentativa de modificar valor constante" << endl;
+                            cout << "Erro semantico, tentativa de modificar valor constante" << endl;
+                        }
+                        else if (tipo == 'X') {
+                            cout << "Erro semantico, argumento invalido (label nao eh do tipo dado)" << endl;
                         }
                     }
                     else if (op == 9) { //copy
                         if (flag) { //pegando o segundo argumento (destino)
                             if ((tipo == 'C') || (tipo == '0')) {
-                                cout << "Erro, tentativa de modificar valor constante" << endl;
+                                cout << "Erro semantico, tentativa de modificar valor constante" << endl;
+                            }
+                            else if (tipo == 'X') {
+                                cout << "Erro semantico, argumento invalido (label nao eh do tipo dado)" << endl;
                             }
                             flag = 0;
                         }
@@ -454,7 +461,7 @@ void segundaPassagem (list <tabSimItem> tabSim, list <string> programa, string n
                     i++;
                 }
                 if (i != tamanho) {
-                    cout << "Erro, numero de operandos diferente da operacao: |" << token << "| na linha : ``" << linha << "``" << endl;
+                    cout << "Erro sintatico, numero de operandos errado: |" << token << "| na linha : ``" << linha << "``" << endl;
                 }
             }
         }
@@ -503,7 +510,6 @@ int main (int argc, char* argv[]) {
         nomeOUT.append(".txt"); //aqui vai depender da operacao
     }
     cout << nomeIN << " " << nomeOUT << endl;
-    //inputTemp (&nome);
     primeiraPassagem(&tabSim,&programa,nomeIN);
     printaTabSimTemp(tabSim);
     segundaPassagem(tabSim,programa,nomeOUT);
