@@ -64,32 +64,53 @@ int tabSimSeek (list <MacroNameTable> MNT, string token) {
     }
 }
 
+int tabSimSeek2 (list <MacroNameTable> MNT, string token) {
+    list <MacroNameTable> :: iterator it;
+
+    it = MNT.begin();
+    while (1) {
+        if (it == MNT.end()) {
+            return -1;
+        }
+        else if (iequals(token.c_str(),it->label) != 1) {
+            it++;
+        }
+        else {
+            return it->linhamdtfim;
+        }
+    }
+}
+
 void macro (list <MacroNameTable> *MNT, string nome){ //Um tanto desses inteiros eu copiei da sua parte e tenho medo de apagar
     ifstream arquivo;
     ofstream codprep;
-    string token,linha,tokenaux,mdt[100];
+    string token,linha,tokenaux,mdt[100],argmacro,arg[10];
     int equflag,ifflag,nextlineflag,i=0, endereco=0, op=-1, simEndereco=-1,lala,macroflag=0,argumeto;
-    int mdtcont=0,contarg=0,mdtsearch = 0;
+    int mdtcont=0,contarg=0,mdtsearch = 0, fim,z,macroflag2;
     MacroNameTable SimAtual;
 
     arquivo.open("prebin.txt");
     codprep.open("macrobin.txt");
     while (getline(arquivo,linha)) {
         contarg = 0;
+        macroflag2 = 0;
         stringstream linhaStream(linha);
-        if (macroflag == 1){ //Quando acha a label MACRO, copia as proximas linhas ate o ENDMACRO pro MDT(arquivo texto)
-            mdt[mdtcont] = linha;//E conta a linha pra colocar na MNT
-            mdtcont++;
-        }
         while(linhaStream >> token){
             //errotoken
-            if((simEndereco = tabSimSeek(*MNT,token)) > -1){
-                for(mdtsearch = SimAtual.linhamdt;mdtsearch < SimAtual.linhamdtfim;mdtsearch++){
+            if((mdtsearch = tabSimSeek(*MNT,token)) > -1){
+                    while(linhaStream >> token){
+                        contarg++;
+                        if (contarg == 1){
+
+                        }
+                    }
+                for(mdtsearch;mdtsearch < tabSimSeek2(*MNT,token);mdtsearch++){
                     cout << mdt[mdtsearch] << "\n";
                 }
             }
             if((iequals(token,"MACRO") == 1)){//Verifica se o token e um EQU, se for EQU ele manda o label anterior pra tabela
                 macroflag = 1;//Seta uma flag de macro = 1
+                macroflag2 = 1;
                 if ((tokenaux.back()) == ':') {//Verifica se o token anterior a macro e um label
                     tokenaux.pop_back();
                     simEndereco = tabSimSeek(*MNT, tokenaux);
@@ -99,11 +120,29 @@ void macro (list <MacroNameTable> *MNT, string nome){ //Um tanto desses inteiros
                     tokenaux.push_back('\0');
                     tokenaux.copy(SimAtual.label, tokenaux.length());
                     SimAtual.linhamdt = mdtcont;
+                    SimAtual.nargumentos = 0;
                 }else{cout << "Erro, nao eh label";}
                 while(linhaStream >> token){
                     contarg++;
                     if (contarg == 1){
-                        //while(token.replace(token.find(','),1," "))
+                        replace( token.begin(), token.end(), ',', ' ' );
+                        stringstream tokenStream(token);
+                        z = 0;
+                        while(tokenStream >> argmacro){
+                            if (argmacro.front() != '&'){
+                                cout << "Argumento na forma invalida" << endl;
+                            }else{
+                                arg[z] = argmacro;
+                                cout << arg[z] << endl;
+                                z++;
+                            }
+                        }
+                        if(z>4){
+                            cout << "Macro com muitos argumentos" << endl;
+                        }else{
+                            SimAtual.nargumentos = z;
+                            z = 0;
+                        }
                     }
                 }
                 if(contarg > 1){
@@ -117,6 +156,10 @@ void macro (list <MacroNameTable> *MNT, string nome){ //Um tanto desses inteiros
                 MNT->push_back(SimAtual);
             }
             tokenaux = token;
+        }
+        if (macroflag == 1 && macroflag2 == 0){ //Quando acha a label MACRO, copia as proximas linhas ate o ENDMACRO pro MDT(arquivo texto)
+            mdt[mdtcont] = linha;//E conta a linha pra colocar na MNT
+            mdtcont++;
         }
     }
     cout << endl;
