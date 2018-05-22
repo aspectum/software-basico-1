@@ -42,7 +42,7 @@ void printaTabSimTemp (list <MacroNameTable> MNT) {
     it = MNT.begin();
     while (it != MNT.end()) {
         texto = it->label;
-        cout << "Label: " << texto << "\tArgumentos: " << it->nargumentos << "\t LinhaMDT: " <<  it->linhamdt << endl;
+        cout << "Label: " << texto << "\tArgumentos: " << it->nargumentos << "\t LinhaMDT: " <<  it->linhamdt << "\t LinhaMDTFIM: " << it->linhamdtfim << endl;
         it++;
     }
 }
@@ -119,6 +119,10 @@ void macro (list <MacroNameTable> *MNT, string nome){ //Um tanto desses inteiros
             tokenaux = token;
         }
     }
+    cout << endl;
+    cout << endl;
+    cout << endl;
+    cout << endl;
     for(i=0;i<10;i++){
         cout << mdt[i] << endl;
     }
