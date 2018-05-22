@@ -115,12 +115,10 @@ void macro (list <MacroNameTable> *MNT, string nome){ //Um tanto desses inteiros
                 macroflag = 0; //Seta a flag de macro = 0
                 SimAtual.linhamdtfim = mdtcont;
                 MNT->push_back(SimAtual);
-                mdtcont--;
             }
             tokenaux = token;
         }
     }
-    mdt[mdtcont] = '\n';
     for(i=0;i<10;i++){
         cout << mdt[i] << endl;
     }
