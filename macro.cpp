@@ -81,12 +81,29 @@ int tabSimSeek2 (list <MacroNameTable> MNT, string token) {
     }
 }
 
+int tabSimSeek3 (list <MacroNameTable> MNT, string token) {
+    list <MacroNameTable> :: iterator it;
+
+    it = MNT.begin();
+    while (1) {
+        if (it == MNT.end()) {
+            return -1;
+        }
+        else if (iequals(token.c_str(),it->label) != 1) {
+            it++;
+        }
+        else {
+            return it->nargumentos;
+        }
+    }
+}
+
 void macro (list <MacroNameTable> *MNT, string nome){ //Um tanto desses inteiros eu copiei da sua parte e tenho medo de apagar
     ifstream arquivo;
     ofstream codprep;
-    string token,linha,tokenaux,mdt[100],argmacro,arg[10];
+    string token,linha,tokenaux,mdt[100],argmacro,argumentodeclarado[10],argumentochamado[10];
     int equflag,ifflag,nextlineflag,i=0, endereco=0, op=-1, simEndereco=-1,lala,macroflag=0,argumeto;
-    int mdtcont=0,contarg=0,mdtsearch = 0, fim,z,macroflag2;
+    int mdtcont=0,contarg=0,mdtsearch = 0, fim,z,macroflag2,endmacroflag,tirarlinha,mdtfim,trocaargumentos,nargumentos;
     MacroNameTable SimAtual;
 
     arquivo.open("prebin.txt");
@@ -94,18 +111,63 @@ void macro (list <MacroNameTable> *MNT, string nome){ //Um tanto desses inteiros
     while (getline(arquivo,linha)) {
         contarg = 0;
         macroflag2 = 0;
+        endmacroflag = 0;
+        tirarlinha = 0;
         stringstream linhaStream(linha);
         while(linhaStream >> token){
             //errotoken
             if((mdtsearch = tabSimSeek(*MNT,token)) > -1){
-                    while(linhaStream >> token){
-                        contarg++;
-                        if (contarg == 1){
-
+                mdtfim = tabSimSeek2(*MNT,token);
+                nargumentos = tabSimSeek3(*MNT,token);
+                tirarlinha = 1;
+                while(linhaStream >> token){
+                    contarg++;
+                    if (contarg == 1){
+                        z = 0;
+                        replace( token.begin(), token.end(), ',', ' ' );
+                        stringstream tokenStream(token);
+                        while(tokenStream >> argmacro){
+                            argumentochamado[z] = argmacro;
+                            z++;
+                        }
+                        if(z == nargumentos){
+                            trocaargumentos = 1;
+                        }else{
+                        cout << "Erro, numero de argumentos invalidos" << endl;
+                        }
+                    }else{
+                        cout << "ERRO" << endl;
+                    }
+                }
+                for(mdtsearch;mdtsearch < mdtfim;mdtsearch++){
+                    if(trocaargumentos == 1){
+                        if(mdt[mdtsearch].find(argumentodeclarado[0]) < 1000){
+                                mdt[mdtsearch].replace(mdt[mdtsearch].find(argumentodeclarado[0]),max(argumentochamado[0].length(),argumentodeclarado[0].length()),argumentochamado[0]);
+                        }
+                        if(mdt[mdtsearch].find(argumentodeclarado[1]) < 1000){
+                                mdt[mdtsearch].replace(mdt[mdtsearch].find(argumentodeclarado[1]),max(argumentochamado[1].length(),argumentodeclarado[1].length()),argumentochamado[1]);
+                        }
+                        if(mdt[mdtsearch].find(argumentodeclarado[2]) < 1000){
+                                mdt[mdtsearch].replace(mdt[mdtsearch].find(argumentodeclarado[2]),max(argumentochamado[2].length(),argumentodeclarado[2].length()),argumentochamado[2]);
+                        }
+                        if(mdt[mdtsearch].find(argumentodeclarado[3]) < 1000){
+                                mdt[mdtsearch].replace(mdt[mdtsearch].find(argumentodeclarado[3]),max(argumentochamado[3].length(),argumentodeclarado[3].length()),argumentochamado[3]);
+                        }
+                        if(mdt[mdtsearch].find(argumentodeclarado[0]) < 1000){
+                                mdt[mdtsearch].replace(mdt[mdtsearch].find(argumentodeclarado[0]),max(argumentochamado[0].length(),argumentodeclarado[0].length()),argumentochamado[0]);
+                        }
+                        if(mdt[mdtsearch].find(argumentodeclarado[1]) < 1000){
+                                mdt[mdtsearch].replace(mdt[mdtsearch].find(argumentodeclarado[1]),max(argumentochamado[1].length(),argumentodeclarado[1].length()),argumentochamado[1]);
+                        }
+                        if(mdt[mdtsearch].find(argumentodeclarado[2]) < 1000){
+                                mdt[mdtsearch].replace(mdt[mdtsearch].find(argumentodeclarado[2]),max(argumentochamado[2].length(),argumentodeclarado[2].length()),argumentochamado[2]);
+                        }
+                        if(mdt[mdtsearch].find(argumentodeclarado[3]) < 1000){
+                                mdt[mdtsearch].replace(mdt[mdtsearch].find(argumentodeclarado[3]),max(argumentochamado[3].length(),argumentodeclarado[3].length()),argumentochamado[3]);
                         }
                     }
-                for(mdtsearch;mdtsearch < tabSimSeek2(*MNT,token);mdtsearch++){
-                    cout << mdt[mdtsearch] << "\n";
+
+                    codprep << mdt[mdtsearch] << endl;
                 }
             }
             if((iequals(token,"MACRO") == 1)){//Verifica se o token e um EQU, se for EQU ele manda o label anterior pra tabela
@@ -121,7 +183,10 @@ void macro (list <MacroNameTable> *MNT, string nome){ //Um tanto desses inteiros
                     tokenaux.copy(SimAtual.label, tokenaux.length());
                     SimAtual.linhamdt = mdtcont;
                     SimAtual.nargumentos = 0;
-                }else{cout << "Erro, nao eh label";}
+                }
+                else{
+                        cout << "Erro, nao eh label";
+                }
                 while(linhaStream >> token){
                     contarg++;
                     if (contarg == 1){
@@ -132,8 +197,7 @@ void macro (list <MacroNameTable> *MNT, string nome){ //Um tanto desses inteiros
                             if (argmacro.front() != '&'){
                                 cout << "Argumento na forma invalida" << endl;
                             }else{
-                                arg[z] = argmacro;
-                                cout << arg[z] << endl;
+                                argumentodeclarado[z] = argmacro;
                                 z++;
                             }
                         }
@@ -152,6 +216,7 @@ void macro (list <MacroNameTable> *MNT, string nome){ //Um tanto desses inteiros
             }
             if((iequals(token,"ENDMACRO") == 1)){
                 macroflag = 0; //Seta a flag de macro = 0
+                endmacroflag = 1;
                 SimAtual.linhamdtfim = mdtcont;
                 MNT->push_back(SimAtual);
             }
@@ -161,16 +226,11 @@ void macro (list <MacroNameTable> *MNT, string nome){ //Um tanto desses inteiros
             mdt[mdtcont] = linha;//E conta a linha pra colocar na MNT
             mdtcont++;
         }
-    }
-    cout << endl;
-    cout << endl;
-    cout << endl;
-    cout << endl;
-    for(i=0;i<10;i++){
-        cout << mdt[i] << endl;
+        if(macroflag == 0 && endmacroflag == 0 && tirarlinha == 0){
+            codprep << linha << endl;
+        }
     }
 }
-
 int main () {
     list <MacroNameTable> MNT;
     string nome="teste.asm";
