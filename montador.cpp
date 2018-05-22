@@ -1,11 +1,7 @@
 /*
-• Macro é declarada na seção texto e EQU vem antes de tudo.
-
-• A primeira passagem está mais complexa do que precisaria ser, mas isso tira complexidade da segunda.
-
 --------------------------------------VERSAO ATUAL--------------------------------------
-* Checa por erros na abertura dos arquivos de entrada e saída
-* Primeira passagem agora pega linha a linha (preparando para contador de linhas)
+* Juntando os arquivos
+- TabsimItem do pre.cpp ta sem flagtipo, dá pau? 
 ----------------------------------------------------------------------------------------
 */
 #include <iostream>
@@ -25,6 +21,13 @@ O campo tipo é uma flag
 'C' - const (nao pode modificar)
 'D' - label na seção data (nao pode dar jump)
 */
+typedef struct MacroNameTable {
+    char label[20];
+    int nargumentos;
+    int linhamdt;
+    int linhamdtfim;
+} MacroNameTable;
+
 typedef struct tabSimItem_s {
     char label[20];
     int endereco;
@@ -166,7 +169,326 @@ int tabSimSeek (list <tabSimItem> tabSim, string token, char* tipo) {
     }
 }
 
-// Gera um arquivo intermediário sem rótulos
+//Vitor pls
+int tabSimSeek0 (list <MacroNameTable> MNT, string token) {
+    list <MacroNameTable> :: iterator it;
+
+    it = MNT.begin();
+    while (1) {
+        if (it == MNT.end()) {
+            return -1;
+        }
+        else if (iequals(token.c_str(),it->label) != 1) {
+            it++;
+        }
+        else {
+            return it->linhamdt;
+        }
+    }
+}
+
+int tabSimSeek2 (list <MacroNameTable> MNT, string token) {
+    list <MacroNameTable> :: iterator it;
+
+    it = MNT.begin();
+    while (1) {
+        if (it == MNT.end()) {
+            return -1;
+        }
+        else if (iequals(token.c_str(),it->label) != 1) {
+            it++;
+        }
+        else {
+            return it->linhamdtfim;
+        }
+    }
+}
+
+int tabSimSeek3 (list <MacroNameTable> MNT, string token) {
+    list <MacroNameTable> :: iterator it;
+
+    it = MNT.begin();
+    while (1) {
+        if (it == MNT.end()) {
+            return -1;
+        }
+        else if (iequals(token.c_str(),it->label) != 1) {
+            it++;
+        }
+        else {
+            return it->nargumentos;
+        }
+    }
+}
+
+// Funcao de pre processamento. Resolve IF EQU e remove comentarios
+void preProc (list <tabSimItem> *tabIfEqu, string nomeIN, string nomeOUT){//Aqui tem o token e o token aux, sendo o token aux o  token anterior ao token
+	ifstream arquivo;								//Para facilitar quando achar um EQU
+    ofstream codprep;								//Quando for fazer a parte de erros tem que mudar um pouqinho	
+    string token,linha,tokenaux;					
+    int equflag,ifflag,nextlineflag,sectiontextflag,sectiondataflag,flagsimdefinido,contarg;
+    int i=0, endereco=0, op=-1, simEndereco=-1,lala,linhacont,contlabel;
+    tabSimItem SimAtual;
+
+    arquivo.open(nomeIN);
+    codprep.open(nomeOUT);
+    linhacont = 1;
+    sectiontextflag = 0;
+    sectiondataflag = 0;
+    equflag = 0;
+    ifflag = 0;
+    nextlineflag = 0;
+    flagsimdefinido = 0;
+    contarg=0;
+
+    while (getline(arquivo,linha)) {
+    	if (linha.length() == 0) {
+    		linhacont++;
+            continue;
+        }
+        stringstream linhaStream(linha);
+        contarg = 0;
+        contlabel = 0;
+        while(linhaStream >> token){
+        	//errotoken
+        	if((token.back()) == ':'){ //Verifica se tem mais de uma label na linha
+        		contlabel++;
+        	}
+			if((iequals(tokenaux,"SECTION") == 1) && iequals(token,"TEXT") == 1){
+				sectiontextflag = 1; //Essa flag mostra que esta na SECTION TEXT
+			}
+			if((iequals(tokenaux,"SECTION") == 1) && iequals(token,"DATA") == 1){
+				sectiontextflag = 0;
+				sectiondataflag = 1; //ESSA flag mostra que esta na SECTION DATA
+			}
+        	if((iequals(token,"EQU") == 1)){//Verifica se o token e um EQU, se for EQU ele manda o token aux anterior pra tabela
+        		equflag = 1;
+        		if(sectiontextflag == 1 || sectiondataflag == 1){ //Verifica se o equ esta antes de todas as secoes
+        			cout << "Erro semantico - EQU na secao errada. Linha: " << linhacont << endl; // Se nao estiver da erro
+        		}
+        			while(linhaStream >> token){//Pega os proximos tokens da linha do EQU
+        				contarg++;//Conta quantos tokens tem no equ
+        				//erro token
+        				if((token.front()) == ';'){//Quando acha um ponto e virgula ele ignora o resto da linha 
+        					contarg--;
+        					while(linhaStream >> token)
+        					continue;
+        				}else{
+        					if ((tokenaux.back()) == ':' && contarg == 1) {//Verifica se o tokenaux e uma label, se nao for da erro
+            					tokenaux.pop_back(); //tira o :
+           						simEndereco = tabSimSeek(*tabIfEqu, tokenaux, NULL); //procura na tabela de simbolo
+            					if (simEndereco > 0) {//verifica se o simbolo ja foi defindo
+            						flagsimdefinido = 1;
+                					cout << "Erro semantico - Simbolo ja definido: " << tokenaux << " Linha: " << linhacont << endl;
+            					}else{
+            						tokenaux.push_back('\0');
+            						tokenaux.copy(SimAtual.label, tokenaux.length());
+            					}
+            					tokenaux.push_back(':');
+       						}else if (contarg == 1){
+       							cout << "Erro sintatico - Token anterior ao EQU nao e um label. Linha: " << linhacont << endl;
+       						}
+       						if(flagsimdefinido == 0 && contarg == 1){
+       							SimAtual.endereco = atoi(token.c_str());
+       							tabIfEqu->push_back(SimAtual);
+       						}else{
+       							flagsimdefinido = 0;
+       						}
+       					}
+       				}
+       				if(contarg == 0){
+       					cout << "Erro sintatico - EQU sem argumentos. Linha: " << linhacont << endl;
+       				}else if (contarg > 1){
+       					cout << "Erro sintatico - EQU com muitos argumentos. Linha: " << linhacont << endl;
+       				}			
+        	}
+         	if((iequals(token,"IF") == 1)){
+        		ifflag = 1;
+        		if(sectiontextflag != 1){
+        			cout << "Erro semantico - IF secao errada. Linha: " << linhacont << endl;
+        		}
+        		if((tokenaux.length()) != 0){
+        			cout << "Erro sintatico - Tem coisa antes do IF. Linha: " << linhacont << endl;
+        		}
+        		while(linhaStream >> token){	
+        			//erro token
+        			contarg ++;
+        			if((token.front()) == ';'){
+        				contarg--;
+        				while(linhaStream >> token)
+        				continue;
+        			}else if((lala = tabSimSeek(*tabIfEqu, token,NULL)) >= 0 && contarg == 1){
+        				if(lala != 1){
+        					nextlineflag = 1;
+        				}
+					}else if(lala == -1 && contarg == 1){
+       					cout << "Erro semantico - Simbolo nao definido. Linha: " << linhacont << endl;
+					}
+        		}
+        		if (contarg == 0){
+        			cout << "Erro sintatico - IF sem argumentos. Linha: " << linhacont << endl;
+        		}else if (contarg > 1){
+        			cout << "Erro sintatico - IF com muitos argumentos. Linha: " << linhacont << endl;
+        		}
+        	}
+        	tokenaux = token;
+        }
+        tokenaux.clear();   
+        if(equflag == 1 || ifflag == 1){
+        	equflag = 0;
+        	ifflag = 0;
+        }
+        else if(nextlineflag == 1){
+        		nextlineflag = 0;
+        	}
+        	else {
+        		if(linha.find(';')<1000){ //Quando acha um ';', diminiu o tamanho da string ate antes do ';'
+        			linha.resize(linha.find(';')-1);
+        		}
+        		codprep << linha << "\n";
+        	}  
+        //scanner(token);
+        if(contlabel > 1){
+        	cout << "Erro sintatico - Mais de 1 label na linha. Linha: " << linhacont << endl;
+        }
+        linhacont++;
+    }
+}
+
+void macroProc (list <MacroNameTable> *MNT, string nomeIN, string nomeOUT){ //Um tanto desses inteiros eu copiei da sua parte e tenho medo de apagar
+    ifstream arquivo;
+    ofstream codprep;
+    string token,linha,tokenaux,mdt[100],argmacro,argumentodeclarado[10],argumentochamado[10];
+    int equflag,ifflag,nextlineflag,i=0, endereco=0, op=-1, simEndereco=-1,lala,macroflag=0,argumeto;
+    int mdtcont=0,contarg=0,mdtsearch = 0, fim,z,macroflag2,endmacroflag,tirarlinha,mdtfim,trocaargumentos,nargumentos;
+    MacroNameTable SimAtual;
+
+    arquivo.open(nomeIN);
+    codprep.open(nomeOUT);
+    while (getline(arquivo,linha)) {
+        contarg = 0;
+        macroflag2 = 0;
+        endmacroflag = 0;
+        tirarlinha = 0;
+        stringstream linhaStream(linha);
+        while(linhaStream >> token){
+            //errotoken
+            if((mdtsearch = tabSimSeek0(*MNT,token)) > -1){
+                mdtfim = tabSimSeek2(*MNT,token);
+                nargumentos = tabSimSeek3(*MNT,token);
+                tirarlinha = 1;
+                while(linhaStream >> token){
+                    contarg++;
+                    if (contarg == 1){
+                        z = 0;
+                        replace( token.begin(), token.end(), ',', ' ' );
+                        stringstream tokenStream(token);
+                        while(tokenStream >> argmacro){
+                            argumentochamado[z] = argmacro;
+                            z++;
+                        }
+                        if(z == nargumentos){
+                            trocaargumentos = 1;
+                        }else{
+                        cout << "Erro, numero de argumentos invalidos" << endl;
+                        }
+                    }else{
+                        cout << "ERRO" << endl;
+                    }
+                }
+                for(mdtsearch;mdtsearch < mdtfim;mdtsearch++){
+                    if(trocaargumentos == 1){
+                        if(mdt[mdtsearch].find(argumentodeclarado[0]) < 1000){
+                                mdt[mdtsearch].replace(mdt[mdtsearch].find(argumentodeclarado[0]),max(argumentochamado[0].length(),argumentodeclarado[0].length()),argumentochamado[0]);
+                        }
+                        if(mdt[mdtsearch].find(argumentodeclarado[1]) < 1000){
+                                mdt[mdtsearch].replace(mdt[mdtsearch].find(argumentodeclarado[1]),max(argumentochamado[1].length(),argumentodeclarado[1].length()),argumentochamado[1]);
+                        }
+                        if(mdt[mdtsearch].find(argumentodeclarado[2]) < 1000){
+                                mdt[mdtsearch].replace(mdt[mdtsearch].find(argumentodeclarado[2]),max(argumentochamado[2].length(),argumentodeclarado[2].length()),argumentochamado[2]);
+                        }
+                        if(mdt[mdtsearch].find(argumentodeclarado[3]) < 1000){
+                                mdt[mdtsearch].replace(mdt[mdtsearch].find(argumentodeclarado[3]),max(argumentochamado[3].length(),argumentodeclarado[3].length()),argumentochamado[3]);
+                        }
+                        if(mdt[mdtsearch].find(argumentodeclarado[0]) < 1000){
+                                mdt[mdtsearch].replace(mdt[mdtsearch].find(argumentodeclarado[0]),max(argumentochamado[0].length(),argumentodeclarado[0].length()),argumentochamado[0]);
+                        }
+                        if(mdt[mdtsearch].find(argumentodeclarado[1]) < 1000){
+                                mdt[mdtsearch].replace(mdt[mdtsearch].find(argumentodeclarado[1]),max(argumentochamado[1].length(),argumentodeclarado[1].length()),argumentochamado[1]);
+                        }
+                        if(mdt[mdtsearch].find(argumentodeclarado[2]) < 1000){
+                                mdt[mdtsearch].replace(mdt[mdtsearch].find(argumentodeclarado[2]),max(argumentochamado[2].length(),argumentodeclarado[2].length()),argumentochamado[2]);
+                        }
+                        if(mdt[mdtsearch].find(argumentodeclarado[3]) < 1000){
+                                mdt[mdtsearch].replace(mdt[mdtsearch].find(argumentodeclarado[3]),max(argumentochamado[3].length(),argumentodeclarado[3].length()),argumentochamado[3]);
+                        }
+                    }
+
+                    codprep << mdt[mdtsearch] << endl;
+                }
+            }
+            if((iequals(token,"MACRO") == 1)){//Verifica se o token e um EQU, se for EQU ele manda o label anterior pra tabela
+                macroflag = 1;//Seta uma flag de macro = 1
+                macroflag2 = 1;
+                if ((tokenaux.back()) == ':') {//Verifica se o token anterior a macro e um label
+                    tokenaux.pop_back();
+                    simEndereco = tabSimSeek0(*MNT, tokenaux);
+                    if (simEndereco > 0) {
+                        cout << "Erro, simbolo ja definido: |" << tokenaux << endl;
+                    }
+                    tokenaux.push_back('\0');
+                    tokenaux.copy(SimAtual.label, tokenaux.length());
+                    SimAtual.linhamdt = mdtcont;
+                    SimAtual.nargumentos = 0;
+                }
+                else{
+                        cout << "Erro, nao eh label";
+                }
+                while(linhaStream >> token){
+                    contarg++;
+                    if (contarg == 1){
+                        replace( token.begin(), token.end(), ',', ' ' );
+                        stringstream tokenStream(token);
+                        z = 0;
+                        while(tokenStream >> argmacro){
+                            if (argmacro.front() != '&'){
+                                cout << "Argumento na forma invalida" << endl;
+                            }else{
+                                argumentodeclarado[z] = argmacro;
+                                z++;
+                            }
+                        }
+                        if(z>4){
+                            cout << "Macro com muitos argumentos" << endl;
+                        }else{
+                            SimAtual.nargumentos = z;
+                            z = 0;
+                        }
+                    }
+                }
+                if(contarg > 1){
+                    cout << "Macro com muitos argumentos" << endl;
+                }else{
+                }
+            }
+            if((iequals(token,"ENDMACRO") == 1)){
+                macroflag = 0; //Seta a flag de macro = 0
+                endmacroflag = 1;
+                SimAtual.linhamdtfim = mdtcont;
+                MNT->push_back(SimAtual);
+            }
+            tokenaux = token;
+        }
+        if (macroflag == 1 && macroflag2 == 0){ //Quando acha a label MACRO, copia as proximas linhas ate o ENDMACRO pro MDT(arquivo texto)
+            mdt[mdtcont] = linha;//E conta a linha pra colocar na MNT
+            mdtcont++;
+        }
+        if(macroflag == 0 && endmacroflag == 0 && tirarlinha == 0){
+            codprep << linha << endl;
+        }
+    }
+}
+
 void primeiraPassagem (list <tabSimItem> *tabSim, list <string> *programa, string nomeIN) {
     ifstream arquivo;
     char colon, semicolon;
@@ -176,7 +498,7 @@ void primeiraPassagem (list <tabSimItem> *tabSim, list <string> *programa, strin
 
     arquivo.open(nomeIN);
     if (!arquivo) {
-        cout << "Erro, nao foi possivel abrir o arquivo" << endl;
+        cout << "Erro, nao foi possivel abrir o arquivo " << nomeIN << endl;
         return;
     }
     getline(arquivo,linhaIN);
@@ -480,28 +802,47 @@ void segundaPassagem (list <tabSimItem> tabSim, list <string> programa, string n
 }
 
 int main (int argc, char* argv[]) {
-    list <tabSimItem> tabSim;
+    list <tabSimItem> tabSim, tabIfEqu;
     list <string> programa;
+	list <MacroNameTable> MNT;
     string nomeIN, nomeOUT;
+
     if (argc < 4) {
-        cout <<  "Erro - parametros insuficientes, usando parametros padrao" << endl;
-        nomeIN = "bin.asm";
-        nomeOUT = "aout.txt";
+        cout <<  "Erro - argumentos insuficientes" << endl;
+        return 0;
     }
     else {
         if (strcmp(argv[1],"-o") && strcmp(argv[1],"-m") && strcmp(argv[1],"-p")) {
-            cout <<  "Erro - argumentos fora de ordem" << endl;
+            cout <<  "Erro - argumentos fora de ordem ou invalidos" << endl;
             return 0;
         }
         nomeIN.assign(argv[2]);
         nomeIN.append(".asm");
         nomeOUT.assign(argv[3]);
-        nomeOUT.append(".txt"); //aqui vai depender da operacao
+		if (!strcmp(argv[1],"-p")) {
+			nomeOUT.append(".pre");
+			//cout << nomeIN << " " << nomeOUT << endl;
+			preProc(&tabIfEqu,nomeIN,nomeOUT);
+		}
+		else if (!strcmp(argv[1],"-m")) {
+			nomeOUT.append(".mcr");
+			//cout << nomeIN << " " << nomeOUT << endl;
+			preProc(&tabIfEqu,nomeIN,"codPre.txt");
+			macroProc(&MNT,"codPre.txt", nomeOUT);
+			remove("codPre.txt");
+		}
+		else if (!strcmp(argv[1],"-o")) {
+			nomeOUT.append(".o");
+			//cout << nomeIN << " " << nomeOUT << endl;
+			preProc(&tabIfEqu,nomeIN,"codPre.txt");
+			macroProc(&MNT,"codPre.txt", "codMacro.txt");
+			primeiraPassagem(&tabSim,&programa,"codMacro.txt");
+			segundaPassagem(tabSim,programa,nomeOUT);
+			remove("codPre.txt");
+			remove("codMacro.txt");
+		}
     }
-    cout << nomeIN << " " << nomeOUT << endl;
-    primeiraPassagem(&tabSim,&programa,nomeIN);
-    printaTabSimTemp(tabSim);
-    segundaPassagem(tabSim,programa,nomeOUT);
-    //printaTemp(programa);
+    //printaTabSimTemp(tabSim);
+
     return 0;
 }
