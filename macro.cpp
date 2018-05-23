@@ -108,7 +108,7 @@ int tabSimSeek3 (list <MacroNameTable> MNT, string token) {
 
 //if((tabSimSeek2(*MNT,token,&nargumentos,&mdtsearch,&mdtfim,&argumentodeclarado[0],&argumentodeclarado[1],&argumentodeclarado[2],&argumentodeclarado[3])) > -1){
 int expandeMacro (list <MacroNameTable> *MNT, string *mdt, ofstream &codprep, string linha) {
-    int nargumentos=0, mdtsearch=0, mdtfim=0, z=0, contarg=0, trocaargumentos=0,copyflag,copyflag2,copyflag3;
+    int nargumentos=0, mdtsearch=0, mdtfim=0, z=0, contarg=0, trocaargumentos=0,copyflag,copyflag2,copyflag3,tirarlinha;
     string argumentodeclarado[4], argumentochamado[4], argmacro, mdtaux, mdtaux2, token, linhaaux;
 
     stringstream linhaStream(linha);
@@ -144,7 +144,8 @@ int expandeMacro (list <MacroNameTable> *MNT, string *mdt, ofstream &codprep, st
         }
         for(mdtsearch;mdtsearch < mdtfim;mdtsearch++){
             mdtaux = mdt[mdtsearch];
-            expandeMacro(MNT,mdt,codprep,mdtaux);
+            tirarlinha = 0;
+            tirarlinha = expandeMacro(MNT,mdt,codprep,mdtaux);
             if(trocaargumentos == 1){
                 replace(mdtaux.begin(), mdtaux.end(), ',', ' ' );
                 stringstream mdtStream(mdtaux);
@@ -204,8 +205,11 @@ int expandeMacro (list <MacroNameTable> *MNT, string *mdt, ofstream &codprep, st
                     }
                 }
             }
-            codprep << linhaaux << endl;
-        }}
+            if(tirarlinha == 0){
+                codprep << linhaaux << endl;
+            }
+        }
+        }
         return 1;
     }
     return 0;
@@ -289,6 +293,10 @@ void macro (list <MacroNameTable> *MNT, string nome){ //Um tanto desses inteiros
         if(macroflag == 0 && endmacroflag == 0 && tirarlinha == 0){
             codprep << linha << endl;
         }
+    }
+    cout << "MDT:";
+    for(z=0;z<20;z++){
+        cout << "Linha: "<< z << " " << mdt[z] << endl;
     }
 }
 int main () {
