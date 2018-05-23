@@ -146,10 +146,21 @@ void printaTemp (list <string> programa) {
     }
 }
 
+void printaTemp2 (list <int> programa) { // printar lista de numeros de linha
+    list <int> :: iterator it;
+
+    it = programa.begin();
+    while (it != programa.end()) {
+        cout << *it << endl;
+        it++;
+    }
+}
+
 int findLinhaNum (list <int> nLinhas, int numLinha) {
     int i=0;
     list <int> :: iterator it;
 
+    it = nLinhas.begin();
     while (i<numLinha) {
         if (it == nLinhas.end()) {
             return -1;
@@ -235,7 +246,7 @@ int tabSimSeek3 (list <MacroNameTable> MNT, string token) {
 }
 
 // Funcao de pre processamento. Resolve IF EQU e remove comentarios
-void preProc (list <tabSimItem> *tabIfEqu, list <int> nLinhasOUT, string nomeIN, string nomeOUT){//Aqui tem o token e o token aux, sendo o token aux o  token anterior ao token
+void preProc (list <tabSimItem> *tabIfEqu, list <int> *nLinhasOUT, string nomeIN, string nomeOUT){//Aqui tem o token e o token aux, sendo o token aux o  token anterior ao token
 	ifstream arquivo;								//Para facilitar quando achar um EQU
     ofstream codprep;								//Quando for fazer a parte de erros tem que mudar um pouqinho	
     string token,linha,tokenaux;					
@@ -255,6 +266,7 @@ void preProc (list <tabSimItem> *tabIfEqu, list <int> nLinhasOUT, string nomeIN,
     contarg=0;
 
     while (getline(arquivo,linha)) {
+        //cout << linha << endl;
     	if (linha.length() == 0) {
     		linhacont++;
             continue;
@@ -359,7 +371,7 @@ void preProc (list <tabSimItem> *tabIfEqu, list <int> nLinhasOUT, string nomeIN,
         			linha.resize(linha.find(';')-1);
         		}
         		codprep << linha << "\n";
-                nLinhasOUT.push_back(linhacont);
+                nLinhasOUT->push_back(linhacont);
         	}  
         //scanner(token);
         if(contlabel > 1){
@@ -369,24 +381,24 @@ void preProc (list <tabSimItem> *tabIfEqu, list <int> nLinhasOUT, string nomeIN,
     }
 }
 
-void macroProc (list <MacroNameTable> *MNT, list <int> nLinhasIN, list <int> nLinhasOUT, string nomeIN, string nomeOUT){ //Um tanto desses inteiros eu copiei da sua parte e tenho medo de apagar
+void macroProc (list <MacroNameTable> *MNT, list <int> nLinhasIN, list <int> *nLinhasOUT, string nomeIN, string nomeOUT){ //Um tanto desses inteiros eu copiei da sua parte e tenho medo de apagar
     ifstream arquivo;
     ofstream codprep;
     string token,linha,tokenaux,mdt[100],argmacro,argumentodeclarado[10],argumentochamado[10];
     int equflag,ifflag,nextlineflag,i=0, endereco=0, op=-1, simEndereco=-1,lala,macroflag=0,argumeto;
-    int mdtcont=0,contarg=0,mdtsearch = 0, fim,z,macroflag2,endmacroflag,tirarlinha,mdtfim,trocaargumentos,nargumentos;
+    int mdtcont=0,contarg=0,mdtsearch = 0, fim,z,macroflag2,endmacroflag,tirarlinha,mdtfim,trocaargumentos,nargumentos, contLinha=0, nLinha=0;
     MacroNameTable SimAtual;
 
     arquivo.open(nomeIN);
     codprep.open(nomeOUT);
     while (getline(arquivo,linha)) {
+        contLinha++;
         contarg = 0;
         macroflag2 = 0;
         endmacroflag = 0;
         tirarlinha = 0;
         stringstream linhaStream(linha);
         while(linhaStream >> token){
-            //errotoken
             if((mdtsearch = tabSimSeek0(*MNT,token)) > -1){
                 mdtfim = tabSimSeek2(*MNT,token);
                 nargumentos = tabSimSeek3(*MNT,token);
@@ -439,6 +451,8 @@ void macroProc (list <MacroNameTable> *MNT, list <int> nLinhasIN, list <int> nLi
                     }
 
                     codprep << mdt[mdtsearch] << endl;
+                    nLinha = findLinhaNum(nLinhasIN,contLinha);
+                    nLinhasOUT->push_back(nLinha);
                 }
             }
             if((iequals(token,"MACRO") == 1)){//Verifica se o token e um EQU, se for EQU ele manda o label anterior pra tabela
@@ -499,11 +513,13 @@ void macroProc (list <MacroNameTable> *MNT, list <int> nLinhasIN, list <int> nLi
         }
         if(macroflag == 0 && endmacroflag == 0 && tirarlinha == 0){
             codprep << linha << endl;
+            nLinha = findLinhaNum(nLinhasIN,contLinha);
+            nLinhasOUT->push_back(nLinha);
         }
     }
 }
 
-void primeiraPassagem (list <tabSimItem> *tabSim, list <string> *programa, list <int> nLinhasIN, list <int> nLinhasOUT, string nomeIN) {
+void primeiraPassagem (list <tabSimItem> *tabSim, list <string> *programa, list <int> nLinhasIN, list <int> *nLinhasOUT, string nomeIN) {
     ifstream arquivo;
     char colon, semicolon;
     int tamanho, i=0, endereco=0, op=-1, simEndereco=-1, diretiva=-1, flagSection=0, flagNovaLinha=0, flagLabelDuplo=0, contLinha=0, nLinha=0;
@@ -576,7 +592,7 @@ void primeiraPassagem (list <tabSimItem> *tabSim, list <string> *programa, list 
                         linhaOUT.clear();
                         // Adicionar as duas linhas de baixo toda vez que escreve no arquivo
                         nLinha = findLinhaNum(nLinhasIN,contLinha);
-                        nLinhasOUT.push_back(nLinha);
+                        nLinhasOUT->push_back(nLinha);
                         endereco+=3;
                         continue;
                     }
@@ -590,7 +606,7 @@ void primeiraPassagem (list <tabSimItem> *tabSim, list <string> *programa, list 
                     programa->push_back(linhaOUT);
                     linhaOUT.clear();
                     nLinha = findLinhaNum(nLinhasIN,contLinha);
-                    nLinhasOUT.push_back(nLinha);
+                    nLinhasOUT->push_back(nLinha);
                 }
                 i++;
                 endereco++;
@@ -625,7 +641,7 @@ void primeiraPassagem (list <tabSimItem> *tabSim, list <string> *programa, list 
                             programa->push_back(linhaOUT);
                             linhaOUT.clear();
                             nLinha = findLinhaNum(nLinhasIN,contLinha);
-                            nLinhasOUT.push_back(nLinha);
+                            nLinhasOUT->push_back(nLinha);
                         }
                         linhaOUT.append(token);
                         linhaOUT.push_back(' ');
@@ -648,7 +664,7 @@ void primeiraPassagem (list <tabSimItem> *tabSim, list <string> *programa, list 
                         programa->push_back(linhaOUT);
                         linhaOUT.clear();
                         nLinha = findLinhaNum(nLinhasIN,contLinha);
-                        nLinhasOUT.push_back(nLinha);
+                        nLinhasOUT->push_back(nLinha);
                         endereco++;
                         flagNovaLinha = 0;
                         continue;
@@ -658,7 +674,7 @@ void primeiraPassagem (list <tabSimItem> *tabSim, list <string> *programa, list 
                             programa->push_back(linhaOUT);
                             linhaOUT.clear();
                             nLinha = findLinhaNum(nLinhasIN,contLinha);
-                            nLinhasOUT.push_back(nLinha);
+                            nLinhasOUT->push_back(nLinha);
                         }
                         flagNovaLinha = 1;
                         linhaOUT.append(token);
@@ -676,7 +692,7 @@ void primeiraPassagem (list <tabSimItem> *tabSim, list <string> *programa, list 
                         programa->push_back(linhaOUT);
                         linhaOUT.clear();
                         nLinha = findLinhaNum(nLinhasIN,contLinha);
-                        nLinhasOUT.push_back(nLinha);
+                        nLinhasOUT->push_back(nLinha);
                         endereco += stoi(token,NULL)-1;
                         flagNovaLinha = 0;
                     }
@@ -691,7 +707,7 @@ void primeiraPassagem (list <tabSimItem> *tabSim, list <string> *programa, list 
         programa->push_back(linhaOUT);
         linhaOUT.clear();
         nLinha = findLinhaNum(nLinhasIN,contLinha);
-        nLinhasOUT.push_back(nLinha);
+        nLinhasOUT->push_back(nLinha);
     }
     arquivo.close();
 }
@@ -868,21 +884,23 @@ int main (int argc, char* argv[]) {
 		if (!strcmp(argv[1],"-p")) {
 			nomeOUT.append(".pre");
 			//cout << nomeIN << " " << nomeOUT << endl;
-			preProc(&tabIfEqu,nLinhasPre,nomeIN,nomeOUT);
+			preProc(&tabIfEqu,&nLinhasPre,nomeIN,nomeOUT);
 		}
 		else if (!strcmp(argv[1],"-m")) {
 			nomeOUT.append(".mcr");
-			//cout << nomeIN << " " << nomeOUT << endl;
-			preProc(&tabIfEqu,nLinhasPre,nomeIN,"codPre.txt");
-			macroProc(&MNT,nLinhasPre,nLinhasMacro,"codPre.txt", nomeOUT);
-			remove("codPre.txt");
+			cout << nomeIN << " " << nomeOUT << endl;
+			preProc(&tabIfEqu,&nLinhasPre,nomeIN,"codPre.txt");
+            printaTemp2(nLinhasPre);
+			macroProc(&MNT,nLinhasPre,&nLinhasMacro,"codPre.txt", nomeOUT);
+            printaTemp2(nLinhasMacro);
+			//remove("codPre.txt");
 		}
 		else if (!strcmp(argv[1],"-o")) {
 			nomeOUT.append(".o");
 			//cout << nomeIN << " " << nomeOUT << endl;
-			preProc(&tabIfEqu,nLinhasPre,nomeIN,"codPre.txt");
-			macroProc(&MNT,nLinhasPre,nLinhasMacro,"codPre.txt", "codMacro.txt");
-			primeiraPassagem(&tabSim,&programa,nLinhasMacro,nLinhas1pass,"codMacro.txt");
+			preProc(&tabIfEqu,&nLinhasPre,nomeIN,"codPre.txt");
+			macroProc(&MNT,nLinhasPre,&nLinhasMacro,"codPre.txt", "codMacro.txt");
+			primeiraPassagem(&tabSim,&programa,nLinhasMacro,&nLinhas1pass,"codMacro.txt");
 			segundaPassagem(tabSim,programa,nLinhas1pass,nomeOUT);
 			remove("codPre.txt");
 			remove("codMacro.txt");
