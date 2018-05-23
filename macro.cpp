@@ -107,14 +107,20 @@ int tabSimSeek3 (list <MacroNameTable> MNT, string token) {
 }
 
 //if((tabSimSeek2(*MNT,token,&nargumentos,&mdtsearch,&mdtfim,&argumentodeclarado[0],&argumentodeclarado[1],&argumentodeclarado[2],&argumentodeclarado[3])) > -1){
-void expandeMacro (list <MacroNameTable> *MNT, string *mdt, ofstream &codprep, string linha) {
-    int nargumentos=0, mdtsearch=0, mdtfim=0, z=0, contarg=0, trocaargumentos=0;
+int expandeMacro (list <MacroNameTable> *MNT, string *mdt, ofstream &codprep, string linha) {
+    int nargumentos=0, mdtsearch=0, mdtfim=0, z=0, contarg=0, trocaargumentos=0,copyflag,copyflag2,copyflag3;
     string argumentodeclarado[4], argumentochamado[4], argmacro, mdtaux, mdtaux2, token, linhaaux;
-    //tirarlinha = 1;
 
     stringstream linhaStream(linha);
     linhaStream >> token;
     if((tabSimSeek2(*MNT,token,&nargumentos,&mdtsearch,&mdtfim,&argumentodeclarado[0],&argumentodeclarado[1],&argumentodeclarado[2],&argumentodeclarado[3])) > -1){
+        if(nargumentos == 0){//Se a macro nao tiver argumentos ela apenas printa o que tem na mnt
+            for(mdtsearch;mdtsearch < mdtfim;mdtsearch++){
+                mdtaux = mdt[mdtsearch];
+                expandeMacro(MNT,mdt,codprep,mdtaux);
+                codprep << mdtaux << endl;
+            }
+        }else{
         while(linhaStream >> token){
             contarg++;
             if (contarg == 1){
@@ -143,23 +149,55 @@ void expandeMacro (list <MacroNameTable> *MNT, string *mdt, ofstream &codprep, s
                 replace(mdtaux.begin(), mdtaux.end(), ',', ' ' );
                 stringstream mdtStream(mdtaux);
                 linhaaux.clear();
-                
+                copyflag = 0; //Essas flags criam um contador pra escrever o copy da maneira certa
+                copyflag2 = 0;
+                copyflag3 = 0;
                 while (mdtStream >> token) {
+                if(copyflag2 == 1){
+                    copyflag3 = 1;
+                }
+                if(copyflag == 1){
+                    copyflag2 = 1;
+                }
+                if((iequals(token,"COPY") == 1)){
+                    copyflag = 1;
+                }
+
                     if (iequals(token,argumentodeclarado[0])){
+                        if(copyflag3 == 1){
+                            linhaaux.append(",");
+                        }else{
+                            linhaaux.append(" ");
+                        }
                         linhaaux.append(argumentochamado[0]);
-                        linhaaux.append(" ");
+
                     }
                     else if (iequals(token,argumentodeclarado[1])){
+                        if(copyflag3 == 1){
+                            linhaaux.append(",");
+                        }else{
+                            linhaaux.append(" ");
+                        }
                         linhaaux.append(argumentochamado[1]);
-                        linhaaux.append(" ");
+
                     }
                     else if (iequals(token,argumentodeclarado[2])){
+                        if(copyflag3 == 1){
+                            linhaaux.append(",");
+                        }else{
+                            linhaaux.append(" ");
+                        }
                         linhaaux.append(argumentochamado[2]);
-                        linhaaux.append(" ");
+
                     }
                     else if (iequals(token,argumentodeclarado[3])){
+                        if(copyflag3 == 1){
+                            linhaaux.append(",");
+                        }else{
+                            linhaaux.append(" ");
+                        }
                         linhaaux.append(argumentochamado[3]);
-                        linhaaux.append(" ");
+
                     }
                     else {
                         linhaaux.append(token);
@@ -167,8 +205,10 @@ void expandeMacro (list <MacroNameTable> *MNT, string *mdt, ofstream &codprep, s
                 }
             }
             codprep << linhaaux << endl;
-        }
+        }}
+        return 1;
     }
+    return 0;
 }
 
 void macro (list <MacroNameTable> *MNT, string nome){ //Um tanto desses inteiros eu copiei da sua parte e tenho medo de apagar
@@ -189,7 +229,7 @@ void macro (list <MacroNameTable> *MNT, string nome){ //Um tanto desses inteiros
         stringstream linhaStream(linha);
         while(linhaStream >> token){
             //errotoken
-            expandeMacro(MNT,mdt,codprep,linha); //Extremamente desotimizado
+            tirarlinha = expandeMacro(MNT,mdt,codprep,linha); //Extremamente desotimizado
             if((iequals(token,"MACRO") == 1)){//Verifica se o token e um EQU, se for EQU ele manda o label anterior pra tabela
                 macroflag = 1;//Seta uma flag de macro = 1
                 macroflag2 = 1;
