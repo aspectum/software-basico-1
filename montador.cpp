@@ -26,6 +26,7 @@ typedef struct MacroNameTable {
     int nargumentos;
     int linhamdt;
     int linhamdtfim;
+    string macroarg[4];
 } MacroNameTable;
 
 typedef struct tabSimItem_s {
@@ -194,7 +195,7 @@ int tabSimSeek (list <tabSimItem> tabSim, string token, char* tipo) {
 }
 
 //Vitor pls
-int tabSimSeek0 (list <MacroNameTable> MNT, string token) {
+int mntSeek (list <MacroNameTable> MNT, string token,int *nargumentos, int *linhamdt, int *linhamdtfim, string *arg1, string *arg2, string *arg3, string *arg4) {
     list <MacroNameTable> :: iterator it;
 
     it = MNT.begin();
@@ -206,41 +207,14 @@ int tabSimSeek0 (list <MacroNameTable> MNT, string token) {
             it++;
         }
         else {
-            return it->linhamdt;
-        }
-    }
-}
-
-int tabSimSeek2 (list <MacroNameTable> MNT, string token) {
-    list <MacroNameTable> :: iterator it;
-
-    it = MNT.begin();
-    while (1) {
-        if (it == MNT.end()) {
-            return -1;
-        }
-        else if (iequals(token.c_str(),it->label) != 1) {
-            it++;
-        }
-        else {
+            *nargumentos = it->nargumentos;
+            *linhamdt = it->linhamdt;
+            *linhamdtfim = it->linhamdtfim;
+            *arg1 = it->macroarg[0];
+            *arg2 = it->macroarg[1];
+            *arg3 = it->macroarg[2];
+            *arg4 = it->macroarg[3];
             return it->linhamdtfim;
-        }
-    }
-}
-
-int tabSimSeek3 (list <MacroNameTable> MNT, string token) {
-    list <MacroNameTable> :: iterator it;
-
-    it = MNT.begin();
-    while (1) {
-        if (it == MNT.end()) {
-            return -1;
-        }
-        else if (iequals(token.c_str(),it->label) != 1) {
-            it++;
-        }
-        else {
-            return it->nargumentos;
         }
     }
 }
@@ -381,7 +355,219 @@ void preProc (list <tabSimItem> *tabIfEqu, list <int> *nLinhasOUT, string nomeIN
     }
 }
 
+int expandeMacro (list <MacroNameTable> *MNT, string *mdt, ofstream &codprep, string linha, list <int> *nLinhasOUT, int nLinha) {
+    int nargumentos=0, mdtsearch=0, mdtfim=0, z=0, contarg=0, trocaargumentos=0,copyflag,copyflag2,copyflag3,tirarlinha, flagNPar[] = {0,0,0,0};
+    string argumentodeclarado[4], argumentochamado[4], argmacro, mdtaux, mdtaux2, token, linhaaux;
+
+    stringstream linhaStream(linha);
+    linhaStream >> token;
+    if((mntSeek(*MNT,token,&nargumentos,&mdtsearch,&mdtfim,&argumentodeclarado[0],&argumentodeclarado[1],&argumentodeclarado[2],&argumentodeclarado[3])) > -1){
+        if(nargumentos == 0){//Se a macro nao tiver argumentos ela apenas printa o que tem na mnt
+            for(mdtsearch;mdtsearch < mdtfim;mdtsearch++){
+                mdtaux = mdt[mdtsearch];
+                expandeMacro(MNT,mdt,codprep,mdtaux,nLinhasOUT,nLinha);
+                codprep << mdtaux << endl;
+                nLinhasOUT->push_back(nLinha);
+            }
+        }else{
+            while(linhaStream >> token){
+                contarg++;
+                if (contarg == 1){
+                    z = 0;
+                    replace(token.begin(), token.end(), ',', ' ' );
+                    stringstream tokenStream(token);
+                    while(tokenStream >> argmacro){
+                        if (z<4) {
+                            argumentochamado[z] = argmacro;
+                        }
+                        z++;
+                    }
+                    if(z == nargumentos){
+                        trocaargumentos = 1;
+                    }else{
+                    cout << "Erro, numero de argumentos invalidos" << endl;
+                    }
+                }else{
+                    cout << "Erro, chamada invalida de macro" << endl;
+                }
+            }
+        }
+        for(mdtsearch;mdtsearch < mdtfim;mdtsearch++){
+            mdtaux = mdt[mdtsearch];
+            tirarlinha = 0;
+            tirarlinha = expandeMacro(MNT,mdt,codprep,mdtaux,nLinhasOUT,nLinha);
+            if(trocaargumentos == 1){
+                replace(mdtaux.begin(), mdtaux.end(), ',', ' ' );
+                stringstream mdtStream(mdtaux);
+                linhaaux.clear();
+                copyflag = 0; //Essas flags criam um contador pra escrever o copy da maneira certa
+                copyflag2 = 0;
+                while (mdtStream >> token) {
+                        if(copyflag == 1){
+                            copyflag2++;
+                        }
+                        if((iequals(token,"COPY") == 1)){
+                            copyflag = 1;
+                        }
+                        if (iequals(token,argumentodeclarado[0])){
+                            if(copyflag2 == 2){
+                                linhaaux.append(",");
+                            }else{
+                                linhaaux.append(" ");
+                            }
+                            linhaaux.append(argumentochamado[0]);
+                            flagNPar[0] = 1;
+                        }
+                        else if (iequals(token,argumentodeclarado[1])){
+                            if(copyflag2 == 2){
+                                linhaaux.append(",");
+                            }else{
+                                linhaaux.append(" ");
+                            }
+                            linhaaux.append(argumentochamado[1]);
+                            flagNPar[1] = 1;
+                        }
+                        else if (iequals(token,argumentodeclarado[2])){
+                            if(copyflag2 == 2){
+                                linhaaux.append(",");
+                            }else{
+                                linhaaux.append(" ");
+                            }
+                            linhaaux.append(argumentochamado[2]);
+                            flagNPar[2] = 1;
+                        }
+                        else if (iequals(token,argumentodeclarado[3])){
+                            if(copyflag2 == 2){
+                                linhaaux.append(",");
+                            }else{
+                                linhaaux.append(" ");
+                            }
+                            linhaaux.append(argumentochamado[3]);
+                            flagNPar[3] = 1;
+                        }
+                        else {
+                            linhaaux.append(token);
+                        }
+                    }
+            }
+                if(tirarlinha == 0){
+                    codprep << linhaaux << endl;
+                    nLinhasOUT->push_back(nLinha);
+                }
+            
+        }
+        for (z=0;z<nargumentos;z++) {
+            if (flagNPar[z] == 0) {
+                cout << "Erro, parametros da macro ausentes" << endl;
+            }
+        }
+        return 1;
+    }
+    return 0;
+}
+
 void macroProc (list <MacroNameTable> *MNT, list <int> nLinhasIN, list <int> *nLinhasOUT, string nomeIN, string nomeOUT){ //Um tanto desses inteiros eu copiei da sua parte e tenho medo de apagar
+    ifstream arquivo;
+    ofstream codprep;
+    string token,linha,tokenaux,mdt[100],argmacro,argumentodeclarado[10],argumentochamado[10],mdtaux;
+    int equflag,ifflag,nextlineflag,i=0, endereco=0, op=-1, simEndereco=-1,lala,macroflag=0,argumeto,sectiontextflag,sectiondataflag, contLinha=0, nLinha=0;
+    int mdtcont=0,contarg=0,mdtsearch = 0, fim,z,macroflag2,endmacroflag,tirarlinha,mdtfim,trocaargumentos,nargumentos,newline;
+    MacroNameTable SimAtual;
+
+    arquivo.open(nomeIN);
+    codprep.open(nomeOUT);
+    while (getline(arquivo,linha)) {
+        contLinha++;
+        contarg = 0;
+        macroflag2 = 0;
+        endmacroflag = 0;
+        tirarlinha = 0;
+        newline = 0;
+        stringstream linhaStream(linha);
+        while(linhaStream >> token){
+            //errotoken
+            if((iequals(token,"TEXT") == 1) && (iequals(tokenaux,"SECTION") == 1)){
+                sectiontextflag = 1;
+            }
+            if((iequals(token,"DATA") == 1) && (iequals(tokenaux,"SECTION") == 1)){
+                sectiontextflag = 0;
+                sectiondataflag = 1;
+            }
+            if(macroflag == 0 && newline == 0){
+                tirarlinha = expandeMacro(MNT,mdt,codprep,linha,nLinhasOUT,nLinha); //Extremamente desotimizado
+            }
+            if((iequals(token,"MACRO") == 1)){//Verifica se o token e um EQU, se for EQU ele manda o label anterior pra tabela
+                macroflag = 1;//Seta uma flag de macro = 1
+                macroflag2 = 1;
+                if(sectiontextflag != 1){
+                    cout << "Macro fora da SECTION TEXT" << endl;
+                }
+                if ((tokenaux.back()) == ':') {//Verifica se o token anterior a macro e um label
+                    tokenaux.pop_back();
+                    simEndereco = mntSeek(*MNT, tokenaux,NULL,NULL,NULL,NULL,NULL,NULL,NULL);
+                    if (simEndereco > 0) {
+                        cout << "Erro, simbolo ja definido: |" << tokenaux << endl;
+                    }
+                    tokenaux.push_back('\0');
+                    tokenaux.copy(SimAtual.label, tokenaux.length());
+                    SimAtual.linhamdt = mdtcont;
+                    SimAtual.nargumentos = 0;
+                }
+                else{
+                        cout << "Erro, nao eh label";
+                }
+                while(linhaStream >> token){
+                    contarg++;
+                    if (contarg == 1){
+                        replace( token.begin(), token.end(), ',', ' ' );
+                        stringstream tokenStream(token);
+                        z = 0;
+                        while(tokenStream >> argmacro){
+                            if (argmacro.front() != '&'){
+                                cout << "Argumento na forma invalida" << endl;
+                            }else{
+                                SimAtual.macroarg[z] = argmacro;
+                                z++;
+                            }
+                        }
+                        if(z>4){
+                            cout << "Macro com muitos argumentos" << endl;
+                        }else{
+                            SimAtual.nargumentos = z;
+                            z = 0;
+                        }
+                    }
+                }
+                if(contarg > 1){
+                    cout << "Macro com muitos argumentos" << endl;
+                }else{
+                }
+            }
+            if((iequals(token,"ENDMACRO") == 1)){
+                macroflag = 0; //Seta a flag de macro = 0
+                endmacroflag = 1;
+                SimAtual.linhamdtfim = mdtcont;
+                MNT->push_back(SimAtual);
+            }
+            tokenaux = token;
+            newline++;
+        }
+        if (macroflag == 1 && macroflag2 == 0){ //Quando acha a label MACRO, copia as proximas linhas ate o ENDMACRO pro MDT(arquivo texto)
+            mdt[mdtcont] = linha;//E conta a linha pra colocar na MNT
+            mdtcont++;
+        }
+        if(macroflag == 0 && endmacroflag == 0 && tirarlinha == 0){
+            codprep << linha << endl;
+            nLinha = findLinhaNum(nLinhasIN,contLinha);
+            nLinhasOUT->push_back(nLinha);
+        }
+    }
+    if(macroflag == 1){
+        cout << "MACRO nao foi finalizada com ENDMACRO" << endl;
+    }
+}
+/*
+old void macroProc (list <MacroNameTable> *MNT, list <int> nLinhasIN, list <int> *nLinhasOUT, string nomeIN, string nomeOUT){ //Um tanto desses inteiros eu copiei da sua parte e tenho medo de apagar
     ifstream arquivo;
     ofstream codprep;
     string token,linha,tokenaux,mdt[100],argmacro,argumentodeclarado[10],argumentochamado[10];
@@ -400,7 +586,7 @@ void macroProc (list <MacroNameTable> *MNT, list <int> nLinhasIN, list <int> *nL
         stringstream linhaStream(linha);
         while(linhaStream >> token){
             if((mdtsearch = tabSimSeek0(*MNT,token)) > -1){
-                mdtfim = tabSimSeek2(*MNT,token);
+                mdtfim = mntSeek(*MNT,token);
                 nargumentos = tabSimSeek3(*MNT,token);
                 tirarlinha = 1;
                 while(linhaStream >> token){
@@ -518,7 +704,7 @@ void macroProc (list <MacroNameTable> *MNT, list <int> nLinhasIN, list <int> *nL
         }
     }
 }
-
+*/
 void primeiraPassagem (list <tabSimItem> *tabSim, list <string> *programa, list <int> nLinhasIN, list <int> *nLinhasOUT, string nomeIN) {
     ifstream arquivo;
     char colon, semicolon;

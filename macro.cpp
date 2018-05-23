@@ -153,18 +153,8 @@ int expandeMacro (list <MacroNameTable> *MNT, string *mdt, ofstream &codprep, st
                 copyflag = 0; //Essas flags criam um contador pra escrever o copy da maneira certa
                 copyflag2 = 0;
                 while (mdtStream >> token) {
-                if(copyflag == 1){
-                    copyflag2++;
-                }
-                if((iequals(token,"COPY") == 1)){
-                    copyflag = 1;
-                }
-
-                    if (iequals(token,argumentodeclarado[0])){
-                        if(copyflag2 == 2){
-                            linhaaux.append(",");
-                        }else{
-                            linhaaux.append(" ");
+                        if(copyflag == 1){
+                            copyflag2++;
                         }
                         if((iequals(token,"COPY") == 1)){
                             copyflag = 1;
@@ -209,15 +199,15 @@ int expandeMacro (list <MacroNameTable> *MNT, string *mdt, ofstream &codprep, st
                             linhaaux.append(token);
                         }
                     }
-                }
+            }
                 if(tirarlinha == 0){
                     codprep << linhaaux << endl;
                 }
-            }
-            for (z=0;z<nargumentos;z++) {
-                if (flagNPar[z] == 0) {
-                    cout << "Erro, parametros da macro ausentes" << endl;
-                }
+            
+        }
+        for (z=0;z<nargumentos;z++) {
+            if (flagNPar[z] == 0) {
+                cout << "Erro, parametros da macro ausentes" << endl;
             }
         }
         return 1;
