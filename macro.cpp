@@ -108,7 +108,7 @@ int tabSimSeek3 (list <MacroNameTable> MNT, string token) {
 
 //if((tabSimSeek2(*MNT,token,&nargumentos,&mdtsearch,&mdtfim,&argumentodeclarado[0],&argumentodeclarado[1],&argumentodeclarado[2],&argumentodeclarado[3])) > -1){
 int expandeMacro (list <MacroNameTable> *MNT, string *mdt, ofstream &codprep, string linha) {
-    int nargumentos=0, mdtsearch=0, mdtfim=0, z=0, contarg=0, trocaargumentos=0,copyflag,copyflag2,copyflag3,tirarlinha;
+    int nargumentos=0, mdtsearch=0, mdtfim=0, z=0, contarg=0, trocaargumentos=0,copyflag,copyflag2,copyflag3,tirarlinha, flagNPar[] = {0,0,0,0};
     string argumentodeclarado[4], argumentochamado[4], argmacro, mdtaux, mdtaux2, token, linhaaux;
     stringstream linhaStream(linha);
     linhaStream >> token;
@@ -120,91 +120,95 @@ int expandeMacro (list <MacroNameTable> *MNT, string *mdt, ofstream &codprep, st
                 codprep << mdtaux << endl;
             }
         }else{
-        while(linhaStream >> token){
-            contarg++;
-            if (contarg == 1){
-                z = 0;
-                replace(token.begin(), token.end(), ',', ' ' );
-                stringstream tokenStream(token);
-                while(tokenStream >> argmacro){
-                    if (z<4) {
-                        argumentochamado[z] = argmacro;
+            while(linhaStream >> token){
+                contarg++;
+                if (contarg == 1){
+                    z = 0;
+                    replace(token.begin(), token.end(), ',', ' ' );
+                    stringstream tokenStream(token);
+                    while(tokenStream >> argmacro){
+                        if (z<4) {
+                            argumentochamado[z] = argmacro;
+                        }
+                        z++;
                     }
-                    z++;
-                }
-                if(z == nargumentos){
-                    trocaargumentos = 1;
+                    if(z == nargumentos){
+                        trocaargumentos = 1;
+                    }else{
+                    cout << "Erro, numero de argumentos invalidos" << endl;
+                    }
                 }else{
-                cout << "Erro, numero de argumentos invalidos" << endl;
-                }
-            }else{
-                cout << "Erro, chamada invalida de macro" << endl;
-            }
-        }
-        for(mdtsearch;mdtsearch < mdtfim;mdtsearch++){
-            mdtaux = mdt[mdtsearch];
-            tirarlinha = 0;
-            cout << mdtsearch << " " << mdtfim << endl;
-            tirarlinha = expandeMacro(MNT,mdt,codprep,mdtaux);
-            if(trocaargumentos == 1){
-                replace(mdtaux.begin(), mdtaux.end(), ',', ' ' );
-                stringstream mdtStream(mdtaux);
-                linhaaux.clear();
-                copyflag = 0; //Essas flags criam um contador pra escrever o copy da maneira certa
-                copyflag2 = 0;
-                while (mdtStream >> token) {
-                if(copyflag == 1){
-                    copyflag2++;
-                }
-                if((iequals(token,"COPY") == 1)){
-                    copyflag = 1;
-                }
-
-                    if (iequals(token,argumentodeclarado[0])){
-                        if(copyflag2 == 2){
-                            linhaaux.append(",");
-                        }else{
-                            linhaaux.append(" ");
-                        }
-                        linhaaux.append(argumentochamado[0]);
-
-                    }
-                    else if (iequals(token,argumentodeclarado[1])){
-                        if(copyflag2 == 2){
-                            linhaaux.append(",");
-                        }else{
-                            linhaaux.append(" ");
-                        }
-                        linhaaux.append(argumentochamado[1]);
-
-                    }
-                    else if (iequals(token,argumentodeclarado[2])){
-                        if(copyflag2 == 2){
-                            linhaaux.append(",");
-                        }else{
-                            linhaaux.append(" ");
-                        }
-                        linhaaux.append(argumentochamado[2]);
-
-                    }
-                    else if (iequals(token,argumentodeclarado[3])){
-                        if(copyflag2 == 2){
-                            linhaaux.append(",");
-                        }else{
-                            linhaaux.append(" ");
-                        }
-                        linhaaux.append(argumentochamado[3]);
-
-                    }
-                    else {
-                        linhaaux.append(token);
-                    }
+                    cout << "Erro, chamada invalida de macro" << endl;
                 }
             }
-            if(tirarlinha == 0){
-                codprep << linhaaux << endl;
+            for(mdtsearch;mdtsearch < mdtfim;mdtsearch++){
+                mdtaux = mdt[mdtsearch];
+                tirarlinha = 0;
+                cout << mdtsearch << " " << mdtfim << endl;
+                tirarlinha = expandeMacro(MNT,mdt,codprep,mdtaux);
+                if(trocaargumentos == 1){
+                    replace(mdtaux.begin(), mdtaux.end(), ',', ' ' );
+                    stringstream mdtStream(mdtaux);
+                    linhaaux.clear();
+                    copyflag = 0; //Essas flags criam um contador pra escrever o copy da maneira certa
+                    copyflag2 = 0;
+                    while (mdtStream >> token) {
+                        if(copyflag == 1){
+                            copyflag2++;
+                        }
+                        if((iequals(token,"COPY") == 1)){
+                            copyflag = 1;
+                        }
+                        if (iequals(token,argumentodeclarado[0])){
+                            if(copyflag2 == 2){
+                                linhaaux.append(",");
+                            }else{
+                                linhaaux.append(" ");
+                            }
+                            linhaaux.append(argumentochamado[0]);
+                            flagNPar[0] = 1;
+                        }
+                        else if (iequals(token,argumentodeclarado[1])){
+                            if(copyflag2 == 2){
+                                linhaaux.append(",");
+                            }else{
+                                linhaaux.append(" ");
+                            }
+                            linhaaux.append(argumentochamado[1]);
+                            flagNPar[1] = 1;
+                        }
+                        else if (iequals(token,argumentodeclarado[2])){
+                            if(copyflag2 == 2){
+                                linhaaux.append(",");
+                            }else{
+                                linhaaux.append(" ");
+                            }
+                            linhaaux.append(argumentochamado[2]);
+                            flagNPar[2] = 1;
+                        }
+                        else if (iequals(token,argumentodeclarado[3])){
+                            if(copyflag2 == 2){
+                                linhaaux.append(",");
+                            }else{
+                                linhaaux.append(" ");
+                            }
+                            linhaaux.append(argumentochamado[3]);
+                            flagNPar[3] = 1;
+                        }
+                        else {
+                            linhaaux.append(token);
+                        }
+                    }
+                }
+                if(tirarlinha == 0){
+                    codprep << linhaaux << endl;
+                }
             }
-        }
+            for (z=0;z<nargumentos;z++) {
+                if (flagNPar[z] == 0) {
+                    cout << "Erro, parametros da macro ausentes" << endl;
+                }
+            }
         }
         return 1;
     }
