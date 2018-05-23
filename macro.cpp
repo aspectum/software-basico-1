@@ -149,7 +149,6 @@ void macro (list <MacroNameTable> *MNT, string nome){ //Um tanto desses inteiros
                     mdtaux = mdt[mdtsearch];
                     if(trocaargumentos == 1){
                         if(mdtaux.find(argumentodeclarado[0]) < 1000){
-                                cout << argumentochamado[0] << endl;
                                 mdtaux.replace(mdtaux.find(argumentodeclarado[0]),max(argumentochamado[0].length(),argumentodeclarado[0].length()),argumentochamado[0]);
                         }
                         if(mdtaux.find(argumentodeclarado[1]) < 1000){
