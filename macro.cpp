@@ -110,7 +110,6 @@ int tabSimSeek3 (list <MacroNameTable> MNT, string token) {
 int expandeMacro (list <MacroNameTable> *MNT, string *mdt, ofstream &codprep, string linha) {
     int nargumentos=0, mdtsearch=0, mdtfim=0, z=0, contarg=0, trocaargumentos=0,copyflag,copyflag2,copyflag3,tirarlinha;
     string argumentodeclarado[4], argumentochamado[4], argmacro, mdtaux, mdtaux2, token, linhaaux;
-
     stringstream linhaStream(linha);
     linhaStream >> token;
     if((tabSimSeek2(*MNT,token,&nargumentos,&mdtsearch,&mdtfim,&argumentodeclarado[0],&argumentodeclarado[1],&argumentodeclarado[2],&argumentodeclarado[3])) > -1){
@@ -145,6 +144,7 @@ int expandeMacro (list <MacroNameTable> *MNT, string *mdt, ofstream &codprep, st
         for(mdtsearch;mdtsearch < mdtfim;mdtsearch++){
             mdtaux = mdt[mdtsearch];
             tirarlinha = 0;
+            cout << mdtsearch << " " << mdtfim << endl;
             tirarlinha = expandeMacro(MNT,mdt,codprep,mdtaux);
             if(trocaargumentos == 1){
                 replace(mdtaux.begin(), mdtaux.end(), ',', ' ' );
@@ -152,20 +152,16 @@ int expandeMacro (list <MacroNameTable> *MNT, string *mdt, ofstream &codprep, st
                 linhaaux.clear();
                 copyflag = 0; //Essas flags criam um contador pra escrever o copy da maneira certa
                 copyflag2 = 0;
-                copyflag3 = 0;
                 while (mdtStream >> token) {
-                if(copyflag2 == 1){
-                    copyflag3 = 1;
-                }
                 if(copyflag == 1){
-                    copyflag2 = 1;
+                    copyflag2++;
                 }
                 if((iequals(token,"COPY") == 1)){
                     copyflag = 1;
                 }
 
                     if (iequals(token,argumentodeclarado[0])){
-                        if(copyflag3 == 1){
+                        if(copyflag2 == 2){
                             linhaaux.append(",");
                         }else{
                             linhaaux.append(" ");
@@ -174,7 +170,7 @@ int expandeMacro (list <MacroNameTable> *MNT, string *mdt, ofstream &codprep, st
 
                     }
                     else if (iequals(token,argumentodeclarado[1])){
-                        if(copyflag3 == 1){
+                        if(copyflag2 == 2){
                             linhaaux.append(",");
                         }else{
                             linhaaux.append(" ");
@@ -183,7 +179,7 @@ int expandeMacro (list <MacroNameTable> *MNT, string *mdt, ofstream &codprep, st
 
                     }
                     else if (iequals(token,argumentodeclarado[2])){
-                        if(copyflag3 == 1){
+                        if(copyflag2 == 2){
                             linhaaux.append(",");
                         }else{
                             linhaaux.append(" ");
@@ -192,7 +188,7 @@ int expandeMacro (list <MacroNameTable> *MNT, string *mdt, ofstream &codprep, st
 
                     }
                     else if (iequals(token,argumentodeclarado[3])){
-                        if(copyflag3 == 1){
+                        if(copyflag2 == 2){
                             linhaaux.append(",");
                         }else{
                             linhaaux.append(" ");
@@ -220,7 +216,7 @@ void macro (list <MacroNameTable> *MNT, string nome){ //Um tanto desses inteiros
     ofstream codprep;
     string token,linha,tokenaux,mdt[100],argmacro,argumentodeclarado[10],argumentochamado[10],mdtaux;
     int equflag,ifflag,nextlineflag,i=0, endereco=0, op=-1, simEndereco=-1,lala,macroflag=0,argumeto;
-    int mdtcont=0,contarg=0,mdtsearch = 0, fim,z,macroflag2,endmacroflag,tirarlinha,mdtfim,trocaargumentos,nargumentos;
+    int mdtcont=0,contarg=0,mdtsearch = 0, fim,z,macroflag2,endmacroflag,tirarlinha,mdtfim,trocaargumentos,nargumentos,newline;
     MacroNameTable SimAtual;
 
     arquivo.open("prebin.txt");
@@ -230,10 +226,13 @@ void macro (list <MacroNameTable> *MNT, string nome){ //Um tanto desses inteiros
         macroflag2 = 0;
         endmacroflag = 0;
         tirarlinha = 0;
+        newline = 0;
         stringstream linhaStream(linha);
         while(linhaStream >> token){
             //errotoken
-            tirarlinha = expandeMacro(MNT,mdt,codprep,linha); //Extremamente desotimizado
+            if(macroflag == 0 && newline == 0){
+                tirarlinha = expandeMacro(MNT,mdt,codprep,linha); //Extremamente desotimizado
+            }
             if((iequals(token,"MACRO") == 1)){//Verifica se o token e um EQU, se for EQU ele manda o label anterior pra tabela
                 macroflag = 1;//Seta uma flag de macro = 1
                 macroflag2 = 1;
@@ -285,6 +284,7 @@ void macro (list <MacroNameTable> *MNT, string nome){ //Um tanto desses inteiros
                 MNT->push_back(SimAtual);
             }
             tokenaux = token;
+            newline++;
         }
         if (macroflag == 1 && macroflag2 == 0){ //Quando acha a label MACRO, copia as proximas linhas ate o ENDMACRO pro MDT(arquivo texto)
             mdt[mdtcont] = linha;//E conta a linha pra colocar na MNT
@@ -293,10 +293,6 @@ void macro (list <MacroNameTable> *MNT, string nome){ //Um tanto desses inteiros
         if(macroflag == 0 && endmacroflag == 0 && tirarlinha == 0){
             codprep << linha << endl;
         }
-    }
-    cout << "MDT:";
-    for(z=0;z<20;z++){
-        cout << "Linha: "<< z << " " << mdt[z] << endl;
     }
 }
 int main () {
