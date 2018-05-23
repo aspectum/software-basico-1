@@ -6,5 +6,8 @@
 *.out
 *.app
 *.txt
+*.pre
+*.mcr
+montador
 teste
 trab

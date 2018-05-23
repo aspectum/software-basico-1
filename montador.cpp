@@ -146,6 +146,19 @@ void printaTemp (list <string> programa) {
     }
 }
 
+int findLinhaNum (list <int> nLinhas, int numLinha) {
+    int i=0;
+    list <int> :: iterator it;
+
+    while (i<numLinha) {
+        if (it == nLinhas.end()) {
+            return -1;
+        }
+        i++;
+    }
+    return *it;
+}
+
 int tabSimSeek (list <tabSimItem> tabSim, string token, char* tipo) {
     list <tabSimItem> :: iterator it;
 
@@ -222,7 +235,7 @@ int tabSimSeek3 (list <MacroNameTable> MNT, string token) {
 }
 
 // Funcao de pre processamento. Resolve IF EQU e remove comentarios
-void preProc (list <tabSimItem> *tabIfEqu, string nomeIN, string nomeOUT){//Aqui tem o token e o token aux, sendo o token aux o  token anterior ao token
+void preProc (list <tabSimItem> *tabIfEqu, list <int> nLinhasOUT, string nomeIN, string nomeOUT){//Aqui tem o token e o token aux, sendo o token aux o  token anterior ao token
 	ifstream arquivo;								//Para facilitar quando achar um EQU
     ofstream codprep;								//Quando for fazer a parte de erros tem que mudar um pouqinho	
     string token,linha,tokenaux;					
@@ -346,6 +359,7 @@ void preProc (list <tabSimItem> *tabIfEqu, string nomeIN, string nomeOUT){//Aqui
         			linha.resize(linha.find(';')-1);
         		}
         		codprep << linha << "\n";
+                nLinhasOUT.push_back(linhacont);
         	}  
         //scanner(token);
         if(contlabel > 1){
@@ -355,7 +369,7 @@ void preProc (list <tabSimItem> *tabIfEqu, string nomeIN, string nomeOUT){//Aqui
     }
 }
 
-void macroProc (list <MacroNameTable> *MNT, string nomeIN, string nomeOUT){ //Um tanto desses inteiros eu copiei da sua parte e tenho medo de apagar
+void macroProc (list <MacroNameTable> *MNT, list <int> nLinhasIN, list <int> nLinhasOUT, string nomeIN, string nomeOUT){ //Um tanto desses inteiros eu copiei da sua parte e tenho medo de apagar
     ifstream arquivo;
     ofstream codprep;
     string token,linha,tokenaux,mdt[100],argmacro,argumentodeclarado[10],argumentochamado[10];
@@ -489,10 +503,10 @@ void macroProc (list <MacroNameTable> *MNT, string nomeIN, string nomeOUT){ //Um
     }
 }
 
-void primeiraPassagem (list <tabSimItem> *tabSim, list <string> *programa, string nomeIN) {
+void primeiraPassagem (list <tabSimItem> *tabSim, list <string> *programa, list <int> nLinhasIN, list <int> nLinhasOUT, string nomeIN) {
     ifstream arquivo;
     char colon, semicolon;
-    int tamanho, i=0, endereco=0, op=-1, simEndereco=-1, diretiva=-1, flagSection=0, flagNovaLinha=0, flagLabelDuplo=0;
+    int tamanho, i=0, endereco=0, op=-1, simEndereco=-1, diretiva=-1, flagSection=0, flagNovaLinha=0, flagLabelDuplo=0, contLinha=0, nLinha=0;
     string token, linhaIN, linhaOUT;
     tabSimItem SimAtual;
 
@@ -502,6 +516,7 @@ void primeiraPassagem (list <tabSimItem> *tabSim, list <string> *programa, strin
         return;
     }
     getline(arquivo,linhaIN);
+    contLinha++;
     stringstream linhaStream(linhaIN);
     linhaStream >> token;
     flagSection = iequals(token,"SECTION");
@@ -511,6 +526,7 @@ void primeiraPassagem (list <tabSimItem> *tabSim, list <string> *programa, strin
     }
     flagSection = 0;
     while (getline(arquivo,linhaIN)) {
+        contLinha++;
         stringstream linhaStream(linhaIN);
         while (linhaStream >> token) {
             if (iequals(token,"SECTION") == 1) {
@@ -558,6 +574,9 @@ void primeiraPassagem (list <tabSimItem> *tabSim, list <string> *programa, strin
                         linhaOUT.append(token.substr(token.find(',')+1,token.length()));
                         programa->push_back(linhaOUT);
                         linhaOUT.clear();
+                        // Adicionar as duas linhas de baixo toda vez que escreve no arquivo
+                        nLinha = findLinhaNum(nLinhasIN,contLinha);
+                        nLinhasOUT.push_back(nLinha);
                         endereco+=3;
                         continue;
                     }
@@ -570,6 +589,8 @@ void primeiraPassagem (list <tabSimItem> *tabSim, list <string> *programa, strin
                 if (i == tamanho) {
                     programa->push_back(linhaOUT);
                     linhaOUT.clear();
+                    nLinha = findLinhaNum(nLinhasIN,contLinha);
+                    nLinhasOUT.push_back(nLinha);
                 }
                 i++;
                 endereco++;
@@ -579,6 +600,7 @@ void primeiraPassagem (list <tabSimItem> *tabSim, list <string> *programa, strin
     sectionData:;
     flagNovaLinha = 0;
     while (getline(arquivo,linhaIN)) {
+        contLinha++;
         stringstream linhaStream(linhaIN);
         while (linhaStream >> token) {
             colon = token.back();
@@ -602,6 +624,8 @@ void primeiraPassagem (list <tabSimItem> *tabSim, list <string> *programa, strin
                         if (flagNovaLinha == 1){
                             programa->push_back(linhaOUT);
                             linhaOUT.clear();
+                            nLinha = findLinhaNum(nLinhasIN,contLinha);
+                            nLinhasOUT.push_back(nLinha);
                         }
                         linhaOUT.append(token);
                         linhaOUT.push_back(' ');
@@ -610,6 +634,7 @@ void primeiraPassagem (list <tabSimItem> *tabSim, list <string> *programa, strin
                         diretiva = getDiretiva(token);
                         if ((op > 0) || (diretiva > 0)) {
                             cout << "Erro sintatico, esperava a definicao da CONST";
+                            //Ver se eh nao numero
                         }
                         if ((stoi(token,NULL) == 0) || (stoi(token,NULL,16) == 0)) {
                             SimAtual.flagTipo = '0';
@@ -622,6 +647,8 @@ void primeiraPassagem (list <tabSimItem> *tabSim, list <string> *programa, strin
                         linhaOUT.append(token);
                         programa->push_back(linhaOUT);
                         linhaOUT.clear();
+                        nLinha = findLinhaNum(nLinhasIN,contLinha);
+                        nLinhasOUT.push_back(nLinha);
                         endereco++;
                         flagNovaLinha = 0;
                         continue;
@@ -630,6 +657,8 @@ void primeiraPassagem (list <tabSimItem> *tabSim, list <string> *programa, strin
                         if (flagNovaLinha == 1) {
                             programa->push_back(linhaOUT);
                             linhaOUT.clear();
+                            nLinha = findLinhaNum(nLinhasIN,contLinha);
+                            nLinhasOUT.push_back(nLinha);
                         }
                         flagNovaLinha = 1;
                         linhaOUT.append(token);
@@ -646,6 +675,8 @@ void primeiraPassagem (list <tabSimItem> *tabSim, list <string> *programa, strin
                         linhaOUT.append(token);
                         programa->push_back(linhaOUT);
                         linhaOUT.clear();
+                        nLinha = findLinhaNum(nLinhasIN,contLinha);
+                        nLinhasOUT.push_back(nLinha);
                         endereco += stoi(token,NULL)-1;
                         flagNovaLinha = 0;
                     }
@@ -659,6 +690,8 @@ void primeiraPassagem (list <tabSimItem> *tabSim, list <string> *programa, strin
     if (linhaOUT.length() != 0) {
         programa->push_back(linhaOUT);
         linhaOUT.clear();
+        nLinha = findLinhaNum(nLinhasIN,contLinha);
+        nLinhasOUT.push_back(nLinha);
     }
     arquivo.close();
 }
@@ -686,20 +719,22 @@ void scanner (string token) {
 }
 
 // Assumindo que está sem labels e sem comentários
-void segundaPassagem (list <tabSimItem> tabSim, list <string> programa, string nomeOUT) {
+void segundaPassagem (list <tabSimItem> tabSim, list <string> programa, list <int> nLinhasIN, string nomeOUT) {
     ofstream output;
-    int i, op=-1, tamanho=-1, simEndereco=-1, diretiva=-1, flag=0;
+    int i, op=-1, tamanho=-1, simEndereco=-1, diretiva=-1, flag=0, contLinha=0, nLinha=0;
     char tipo='Z';
     string token;
     list <string> :: iterator it;
 
     output.open(nomeOUT);
     if (!output) {
-        cout << "Erro, nao foi possivel criar o arquivo de saida" << endl;
+        nLinha = findLinhaNum(nLinhasIN,contLinha);
+        cout << "Erro, nao foi possivel criar o arquivo de saida." << endl;
         return;
     }
     it = programa.begin();
     while (it != programa.end()) {
+        contLinha++;
         if (it->length() == 0) {
             continue;
         }
@@ -711,7 +746,8 @@ void segundaPassagem (list <tabSimItem> tabSim, list <string> programa, string n
         if (diretiva < 0) {
             tamanho = getTam(op);
             if (op < 0) {
-                cout << "Erro sintatico, operacao invalida: |" << token << "| na linha : ``"  << "``" << endl;
+                nLinha = findLinhaNum(nLinhasIN,contLinha);
+                cout << "Erro sintatico, operacao invalida: |" << token << "| na linha: " << nLinha << endl;
             }
             else {
                 output << op << " "; // Escreve no arquivo o opcode
@@ -721,7 +757,8 @@ void segundaPassagem (list <tabSimItem> tabSim, list <string> programa, string n
                     if (token.find('+') == string::npos) {
                         simEndereco = tabSimSeek(tabSim,token,&tipo);
                         if (simEndereco < 0) {
-                            cout << "Erro semantico, simbolo nao definido: |" << token << "| na linha : ``"  << "``" << endl; //qual erro
+                            nLinha = findLinhaNum(nLinhasIN,contLinha);
+                            cout << "Erro semantico, simbolo nao definido: |" << token << "| na linha: "  << nLinha << endl; //qual erro
                         }
                         else {
                             output << simEndereco << " ";
@@ -730,7 +767,8 @@ void segundaPassagem (list <tabSimItem> tabSim, list <string> programa, string n
                     else {
                         simEndereco = tabSimSeek(tabSim, token.substr(0,token.find('+')),&tipo);
                         if (simEndereco < 0) {
-                            cout << "Erro semantico, simbolo nao definido: |" << token.substr(0,token.find('+')) << "| na linha : ``"  << "``" << endl; //qual erro
+                            nLinha = findLinhaNum(nLinhasIN,contLinha);
+                            cout << "Erro semantico, simbolo nao definido: |" << token.substr(0,token.find('+')) << "| na linha: "  << nLinha << endl; //qual erro
                         }
                         else {
                             output << simEndereco+stoi(token.substr(token.find('+')+1,token.length()))<< " ";
@@ -738,29 +776,35 @@ void segundaPassagem (list <tabSimItem> tabSim, list <string> programa, string n
                     }
                     if ((op == 6) || (op == 7) || (op == 8)) { //jumps
                         if ((tipo == 'C') || (tipo == '0') || (tipo == 'D')) {
-                            cout << "Erro semantico, pulo para secao data" << endl;
+                            nLinha = findLinhaNum(nLinhasIN,contLinha);
+                            cout << "Erro semantico, pulo para secao data. Na linha: "<< nLinha << endl;
                         }
                     }
                     else if (op == 4) { //div
                         if (tipo == '0') {
-                            cout << "Erro semantico, divisao por 0" << endl;
+                            nLinha = findLinhaNum(nLinhasIN,contLinha);
+                            cout << "Erro semantico, divisao por 0" << nLinha << endl;
                         }
                     }
                     else if ((op == 11) || (op == 12)) { //store e input
                         if ((tipo == 'C') || (tipo == '0')) {
-                            cout << "Erro semantico, tentativa de modificar valor constante" << endl;
+                            nLinha = findLinhaNum(nLinhasIN,contLinha);
+                            cout << "Erro semantico, tentativa de modificar valor constante" << nLinha << endl;
                         }
                         else if (tipo == 'X') {
-                            cout << "Erro semantico, argumento invalido (label nao eh do tipo dado)" << endl;
+                            nLinha = findLinhaNum(nLinhasIN,contLinha);
+                            cout << "Erro semantico, argumento invalido (label nao eh do tipo dado)" << nLinha << endl;
                         }
                     }
                     else if (op == 9) { //copy
                         if (flag) { //pegando o segundo argumento (destino)
                             if ((tipo == 'C') || (tipo == '0')) {
-                                cout << "Erro semantico, tentativa de modificar valor constante" << endl;
+                                nLinha = findLinhaNum(nLinhasIN,contLinha);
+                                cout << "Erro semantico, tentativa de modificar valor constante" << nLinha << endl;
                             }
                             else if (tipo == 'X') {
-                                cout << "Erro semantico, argumento invalido (label nao eh do tipo dado)" << endl;
+                                nLinha = findLinhaNum(nLinhasIN,contLinha);
+                                cout << "Erro semantico, argumento invalido (label nao eh do tipo dado)" << nLinha << endl;
                             }
                             flag = 0;
                         }
@@ -772,7 +816,8 @@ void segundaPassagem (list <tabSimItem> tabSim, list <string> programa, string n
                     i++;
                 }
                 if (i != tamanho) {
-                    cout << "Erro sintatico, numero de operandos errado: |" << token << "| na linha : ``" <<  "``" << endl;
+                    nLinha = findLinhaNum(nLinhasIN,contLinha);
+                    cout << "Erro sintatico, numero de operandos errado: |" << token << "| na linha : ``" <<  nLinha << endl;
                 }
             }
         }
@@ -805,6 +850,7 @@ int main (int argc, char* argv[]) {
     list <tabSimItem> tabSim, tabIfEqu;
     list <string> programa;
 	list <MacroNameTable> MNT;
+    list <int> nLinhasPre, nLinhasMacro, nLinhas1pass;
     string nomeIN, nomeOUT;
 
     if (argc < 4) {
@@ -822,22 +868,22 @@ int main (int argc, char* argv[]) {
 		if (!strcmp(argv[1],"-p")) {
 			nomeOUT.append(".pre");
 			//cout << nomeIN << " " << nomeOUT << endl;
-			preProc(&tabIfEqu,nomeIN,nomeOUT);
+			preProc(&tabIfEqu,nLinhasPre,nomeIN,nomeOUT);
 		}
 		else if (!strcmp(argv[1],"-m")) {
 			nomeOUT.append(".mcr");
 			//cout << nomeIN << " " << nomeOUT << endl;
-			preProc(&tabIfEqu,nomeIN,"codPre.txt");
-			macroProc(&MNT,"codPre.txt", nomeOUT);
+			preProc(&tabIfEqu,nLinhasPre,nomeIN,"codPre.txt");
+			macroProc(&MNT,nLinhasPre,nLinhasMacro,"codPre.txt", nomeOUT);
 			remove("codPre.txt");
 		}
 		else if (!strcmp(argv[1],"-o")) {
 			nomeOUT.append(".o");
 			//cout << nomeIN << " " << nomeOUT << endl;
-			preProc(&tabIfEqu,nomeIN,"codPre.txt");
-			macroProc(&MNT,"codPre.txt", "codMacro.txt");
-			primeiraPassagem(&tabSim,&programa,"codMacro.txt");
-			segundaPassagem(tabSim,programa,nomeOUT);
+			preProc(&tabIfEqu,nLinhasPre,nomeIN,"codPre.txt");
+			macroProc(&MNT,nLinhasPre,nLinhasMacro,"codPre.txt", "codMacro.txt");
+			primeiraPassagem(&tabSim,&programa,nLinhasMacro,nLinhas1pass,"codMacro.txt");
+			segundaPassagem(tabSim,programa,nLinhas1pass,nomeOUT);
 			remove("codPre.txt");
 			remove("codMacro.txt");
 		}
