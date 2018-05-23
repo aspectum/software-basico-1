@@ -141,20 +141,30 @@ int expandeMacro (list <MacroNameTable> *MNT, string *mdt, ofstream &codprep, st
                     cout << "Erro, chamada invalida de macro" << endl;
                 }
             }
-            for(mdtsearch;mdtsearch < mdtfim;mdtsearch++){
-                mdtaux = mdt[mdtsearch];
-                tirarlinha = 0;
-                cout << mdtsearch << " " << mdtfim << endl;
-                tirarlinha = expandeMacro(MNT,mdt,codprep,mdtaux);
-                if(trocaargumentos == 1){
-                    replace(mdtaux.begin(), mdtaux.end(), ',', ' ' );
-                    stringstream mdtStream(mdtaux);
-                    linhaaux.clear();
-                    copyflag = 0; //Essas flags criam um contador pra escrever o copy da maneira certa
-                    copyflag2 = 0;
-                    while (mdtStream >> token) {
-                        if(copyflag == 1){
-                            copyflag2++;
+        }
+        for(mdtsearch;mdtsearch < mdtfim;mdtsearch++){
+            mdtaux = mdt[mdtsearch];
+            tirarlinha = 0;
+            tirarlinha = expandeMacro(MNT,mdt,codprep,mdtaux);
+            if(trocaargumentos == 1){
+                replace(mdtaux.begin(), mdtaux.end(), ',', ' ' );
+                stringstream mdtStream(mdtaux);
+                linhaaux.clear();
+                copyflag = 0; //Essas flags criam um contador pra escrever o copy da maneira certa
+                copyflag2 = 0;
+                while (mdtStream >> token) {
+                if(copyflag == 1){
+                    copyflag2++;
+                }
+                if((iequals(token,"COPY") == 1)){
+                    copyflag = 1;
+                }
+
+                    if (iequals(token,argumentodeclarado[0])){
+                        if(copyflag2 == 2){
+                            linhaaux.append(",");
+                        }else{
+                            linhaaux.append(" ");
                         }
                         if((iequals(token,"COPY") == 1)){
                             copyflag = 1;
@@ -219,7 +229,7 @@ void macro (list <MacroNameTable> *MNT, string nome){ //Um tanto desses inteiros
     ifstream arquivo;
     ofstream codprep;
     string token,linha,tokenaux,mdt[100],argmacro,argumentodeclarado[10],argumentochamado[10],mdtaux;
-    int equflag,ifflag,nextlineflag,i=0, endereco=0, op=-1, simEndereco=-1,lala,macroflag=0,argumeto;
+    int equflag,ifflag,nextlineflag,i=0, endereco=0, op=-1, simEndereco=-1,lala,macroflag=0,argumeto,sectiontextflag,sectiondataflag;
     int mdtcont=0,contarg=0,mdtsearch = 0, fim,z,macroflag2,endmacroflag,tirarlinha,mdtfim,trocaargumentos,nargumentos,newline;
     MacroNameTable SimAtual;
 
@@ -234,12 +244,22 @@ void macro (list <MacroNameTable> *MNT, string nome){ //Um tanto desses inteiros
         stringstream linhaStream(linha);
         while(linhaStream >> token){
             //errotoken
+            if((iequals(token,"TEXT") == 1) && (iequals(tokenaux,"SECTION") == 1)){
+                sectiontextflag = 1;
+            }
+            if((iequals(token,"DATA") == 1) && (iequals(tokenaux,"SECTION") == 1)){
+                sectiontextflag = 0;
+                sectiondataflag = 1;
+            }
             if(macroflag == 0 && newline == 0){
                 tirarlinha = expandeMacro(MNT,mdt,codprep,linha); //Extremamente desotimizado
             }
             if((iequals(token,"MACRO") == 1)){//Verifica se o token e um EQU, se for EQU ele manda o label anterior pra tabela
                 macroflag = 1;//Seta uma flag de macro = 1
                 macroflag2 = 1;
+                if(sectiontextflag != 1){
+                    cout << "Macro fora da SECTION TEXT" << endl;
+                }
                 if ((tokenaux.back()) == ':') {//Verifica se o token anterior a macro e um label
                     tokenaux.pop_back();
                     simEndereco = tabSimSeek2(*MNT, tokenaux,NULL,NULL,NULL,NULL,NULL,NULL,NULL);
@@ -297,6 +317,9 @@ void macro (list <MacroNameTable> *MNT, string nome){ //Um tanto desses inteiros
         if(macroflag == 0 && endmacroflag == 0 && tirarlinha == 0){
             codprep << linha << endl;
         }
+    }
+    if(macroflag == 1){
+        cout << "MACRO nao foi finalizada com ENDMACRO" << endl;
     }
 }
 int main () {
