@@ -1,7 +1,21 @@
 /*
---------------------------------------README--------------------------------------
-* Juntando os arquivos
-- TabsimItem do pre.cpp ta sem flagtipo, dá pau? 
+----------------------------------------------------------------------------------------
+Trabalho 1 de Software Básico 2018/1
+Montador do Assembly Hipotético
+Alunos: Pedro Garcia            Matrícula: 15/0019891
+        Vitor Hugo Prado Gomes  Matrícula: 15/0065582
+----------------------------------------------------------------------------------------
+INSTRUÇÕES DE COMPILAÇÃO
+Usado o g++ 7.3.0 no Ubuntu 18.04 LTS
+g++ -o montador montador.cpp
+----------------------------------------------------------------------------------------
+INSTRUÇÕES DE EXECUÇÃO
+./montador -o entrada saida
+-o:             Modo de operação. Pode ser -p para pre processamento, -m para 
+                processamento de macros e -o para montagem completa
+entrada:    Nome do arquivo de entrada. Extensão .asm implícita
+saida:      Nome do arquivo de saída. Extensão implícita de acordo com o modo de
+            operação
 ----------------------------------------------------------------------------------------
 */
 #include <iostream>
@@ -131,40 +145,6 @@ int getTam (int opCode) {
         return 2;
     }
 }
-
-/*
-void printaTabSimTemp (list <tabSimItem> tabSim) {
-    string texto;
-    list <tabSimItem> :: iterator it;
-
-    it = tabSim.begin();
-    while (it != tabSim.end()) {
-        texto = it->label;
-        cout << "Label: " << texto << "\tEndereco: " << it->endereco << "\tTipo: " << it->flagTipo << endl;
-        it++;
-    }
-}
-
-void printaTemp (list <string> programa) {
-    list <string> :: iterator it;
-
-    it = programa.begin();
-    while (it != programa.end()) {
-        cout << *it << endl;
-        it++;
-    }
-}
-
-void printaTemp2 (list <int> programa) { // printar lista de numeros de linha
-    list <int> :: iterator it;
-
-    it = programa.begin();
-    while (it != programa.end()) {
-        cout << *it << endl;
-        it++;
-    }
-}
-*/
 
 // Funcao recebe o numero da linha na operacao atual e retorna a linha correspondente no codigo original
 int findLinhaNum (list <int> nLinhas, int numLinha) {
@@ -490,7 +470,7 @@ int expandeMacro (list <MacroNameTable> *MNT, string *mdt, ofstream &codprep, st
                 }
             
         }
-        for (z=0;z<nargumentos;z++) {
+        for (z=0;z<nargumentos;z++) { //Checa se foi definido algum argumento da macro mas que nao foi utilizado
             if (flagNPar[z] == 0) {
                 cout << "Erro semantico, parametros da macro ausentes" << endl;
             }
@@ -625,11 +605,11 @@ void primeiraPassagem (list <tabSimItem> *tabSim, list <string> *programa, list 
         cout << "Erro semantico, nao tem section text" << endl;
     }
     flagSection = 0;
-    while (getline(arquivo,linhaIN)) {
+    while (getline(arquivo,linhaIN)) { //Loop principal, pega linhas do arquivo de entrada
         contLinha++;
         stringstream linhaStream(linhaIN);
-        while (linhaStream >> token) {
-            if (iequals(token,"SECTION") == 1) {
+        while (linhaStream >> token) { //Loop secundário, pega palavras da linha
+            if (iequals(token,"SECTION") == 1) { //Ele checa para sair desses 2 loops quando encontrar SECTION DATA
                 flagSection = 1;
                 linhaStream >> token;
                 if (iequals(token,"DATA") == 1) {
@@ -641,7 +621,7 @@ void primeiraPassagem (list <tabSimItem> *tabSim, list <string> *programa, list 
                 }
             }
             colon = token.back();
-            if (colon == ':') {
+            if (colon == ':') { //Processamento do label
                 if (flagLabelDuplo) {
                     nLinha = findLinhaNum(nLinhasIN,contLinha);
                     cout << "Erro sintatico, dois rotulos para uma mesma linha: |" << token << "| na linha" << nLinha << endl;
@@ -662,10 +642,10 @@ void primeiraPassagem (list <tabSimItem> *tabSim, list <string> *programa, list 
                 flagLabelDuplo = 0;
                 op = getOp(token);
                 diretiva = getDiretiva(token);
-                if (op > 0) {
+                if (op > 0) {   //Caso seja operacao
                     i = 1;
                     tamanho = getTam(op);
-                    if (op == 9) { //caso do copy
+                    if (op == 9) { //Caso do copy
                         linhaOUT.append(token);
                         linhaOUT.push_back(' ');
                         linhaStream >> token;
@@ -678,16 +658,15 @@ void primeiraPassagem (list <tabSimItem> *tabSim, list <string> *programa, list 
                         linhaOUT.append(token.substr(token.find(',')+1,token.length()));
                         programa->push_back(linhaOUT);
                         linhaOUT.clear();
-                        // Adicionar as duas linhas de baixo toda vez que escreve no arquivo
                         nLinha = findLinhaNum(nLinhasIN,contLinha);
                         nLinhasOUT->push_back(nLinha);
                         endereco+=3;
                         continue;
                     }
                 }
-                else if (diretiva > 0) {
+                else if (diretiva > 0) { //Se for uma diretiva
                     nLinha = findLinhaNum(nLinhasIN,contLinha);
-                    cout << "Erro semantico, diretiva na secao TEXT: |" << token << "| na linha" << nLinha << endl;
+                    cout << "Erro semantico, diretiva na secao TEXT: |" << token << "| na linha: " << nLinha << endl;
                 }
                 linhaOUT.append(token);
                 linhaOUT.push_back(' ');
@@ -703,13 +682,21 @@ void primeiraPassagem (list <tabSimItem> *tabSim, list <string> *programa, list 
         }
     }
     sectionData:;
+    contLinha--;
+    if (linhaOUT.length() != 0) { //Dump caso uma linha tenha ficado em aberto
+        programa->push_back(linhaOUT);
+        linhaOUT.clear();
+        nLinha = findLinhaNum(nLinhasIN,contLinha);
+        nLinhasOUT->push_back(nLinha);
+    }
+    contLinha++;
     flagNovaLinha = 0;
-    while (getline(arquivo,linhaIN)) {
+    while (getline(arquivo,linhaIN)) { //Loop da leitura de linhas do arquivo, agora a partir da SECTION DATA
         contLinha++;
         stringstream linhaStream(linhaIN);
-        while (linhaStream >> token) {
+        while (linhaStream >> token) { //Loop da leitura de palavras da linha
             colon = token.back();
-            if (colon == ':') {
+            if (colon == ':') { //Processamento de Label
                 token.pop_back();
                 simEndereco = tabSimSeek(*tabSim,token,NULL);
                 if (simEndereco > 0) {
@@ -726,11 +713,11 @@ void primeiraPassagem (list <tabSimItem> *tabSim, list <string> *programa, list 
                 op = getOp(token);
                 diretiva = getDiretiva(token);
                 if (diretiva > 0) {
-                    if (diretiva == 102) { //se for CONST
+                    if (diretiva == 102) { //Se for CONST
                         if (flagNovaLinha == 1){
                             programa->push_back(linhaOUT);
                             linhaOUT.clear();
-                            nLinha = findLinhaNum(nLinhasIN,contLinha);
+                            nLinha = findLinhaNum(nLinhasIN,contLinha-1);
                             nLinhasOUT->push_back(nLinha);
                         }
                         linhaOUT.append(token);
@@ -741,7 +728,6 @@ void primeiraPassagem (list <tabSimItem> *tabSim, list <string> *programa, list 
                         if ((op > 0) || (diretiva > 0)) {
                             nLinha = findLinhaNum(nLinhasIN,contLinha);
                             cout << "Erro sintatico, esperava a definicao da CONST: |" << token << "| na linha" << nLinha << endl;
-                            //Ver se eh nao numero
                         }
                         if ((stoi(token,NULL) == 0) || (stoi(token,NULL,16) == 0)) {
                             SimAtual.flagTipo = '0';
@@ -760,11 +746,11 @@ void primeiraPassagem (list <tabSimItem> *tabSim, list <string> *programa, list 
                         flagNovaLinha = 0;
                         continue;
                     }
-                    else { //se for SPACE
-                        if (flagNovaLinha == 1) {
+                    else { //Se for SPACE
+                        if (flagNovaLinha == 1) { //Isso é um fix para um erro que pode ser gerado devido ao suporte para parametros X+numero do SPACE
                             programa->push_back(linhaOUT);
                             linhaOUT.clear();
-                            nLinha = findLinhaNum(nLinhasIN,contLinha);
+                            nLinha = findLinhaNum(nLinhasIN,contLinha-1);
                             nLinhasOUT->push_back(nLinha);
                         }
                         flagNovaLinha = 1;
@@ -778,7 +764,7 @@ void primeiraPassagem (list <tabSimItem> *tabSim, list <string> *programa, list 
                     cout << "Erro semantico, instrucao na secao DATA: |" << token << "| na linha" << nLinha << endl;
                     flagNovaLinha = 0;
                 }
-                else {
+                else { //Caso o token nao seja diretiva nem operacao. Espera-se que seja o parametro da CONST ou SPACE
                     if (flagNovaLinha == 1) {
                         linhaOUT.append(token);
                         programa->push_back(linhaOUT);
@@ -796,7 +782,8 @@ void primeiraPassagem (list <tabSimItem> *tabSim, list <string> *programa, list 
             }
         }
     }
-    if (linhaOUT.length() != 0) {
+    if (linhaOUT.length() != 0) { //Dump se houver linha em aberto
+        contLinha++;
         programa->push_back(linhaOUT);
         linhaOUT.clear();
         nLinha = findLinhaNum(nLinhasIN,contLinha);
@@ -820,13 +807,13 @@ void segundaPassagem (list <tabSimItem> tabSim, list <string> programa, list <in
         return;
     }
     it = programa.begin();
-    while (it != programa.end()) {
+    while (it != programa.end()) { //Lendo da lista de string
         contLinha++;
         if (it->length() == 0) {
             continue;
         }
-        stringstream linhaStream(*it);
-        linhaStream >> token;               // Primeiro token da linha, deve obrigatoriamente ser operacao?
+        stringstream linhaStream(*it);  //Criacao da stream para poder usar o operador >>
+        linhaStream >> token;
         scanner(token);
         op = getOp(token);
         diretiva = getDiretiva(token);
@@ -839,13 +826,13 @@ void segundaPassagem (list <tabSimItem> tabSim, list <string> programa, list <in
             else {
                 output << op << " "; // Escreve no arquivo o opcode
                 i=1;
-                while (linhaStream >> token) {
+                while (linhaStream >> token) { //Abaixo um monte de testes para erros semânticos
                     scanner(token);
                     if (token.find('+') == string::npos) {
                         simEndereco = tabSimSeek(tabSim,token,&tipo);
                         if (simEndereco < 0) {
                             nLinha = findLinhaNum(nLinhasIN,contLinha);
-                            cout << "Erro semantico, simbolo nao definido: |" << token << "| na linha: "  << nLinha << endl; //qual erro
+                            cout << "Erro semantico, simbolo nao definido: |" << token << "| na linha: "  << nLinha << endl;
                         }
                         else {
                             output << simEndereco << " ";
@@ -855,19 +842,19 @@ void segundaPassagem (list <tabSimItem> tabSim, list <string> programa, list <in
                         simEndereco = tabSimSeek(tabSim, token.substr(0,token.find('+')),&tipo);
                         if (simEndereco < 0) {
                             nLinha = findLinhaNum(nLinhasIN,contLinha);
-                            cout << "Erro semantico, simbolo nao definido: |" << token.substr(0,token.find('+')) << "| na linha: "  << nLinha << endl; //qual erro
+                            cout << "Erro semantico, simbolo nao definido: |" << token.substr(0,token.find('+')) << "| na linha: "  << nLinha << endl;
                         }
                         else {
                             output << simEndereco+stoi(token.substr(token.find('+')+1,token.length()))<< " ";
                         }
                     }
-                    if ((op == 6) || (op == 7) || (op == 8)) { //jumps
+                    if ((op == 6) || (op == 7) || (op == 8)) { //Jumps
                         if ((tipo == 'C') || (tipo == '0') || (tipo == 'D')) {
                             nLinha = findLinhaNum(nLinhasIN,contLinha);
                             cout << "Erro semantico, pulo para secao data. Na linha: "<< nLinha << endl;
                         }
                     }
-                    else if (op == 4) { //div
+                    else if (op == 4) { //Div
                         if (tipo == '0') {
                             nLinha = findLinhaNum(nLinhasIN,contLinha);
                             cout << "Erro semantico, divisao por 0" << nLinha << endl;
@@ -876,22 +863,22 @@ void segundaPassagem (list <tabSimItem> tabSim, list <string> programa, list <in
                     else if ((op == 11) || (op == 12)) { //store e input
                         if ((tipo == 'C') || (tipo == '0')) {
                             nLinha = findLinhaNum(nLinhasIN,contLinha);
-                            cout << "Erro semantico, tentativa de modificar valor constante" << nLinha << endl;
+                            cout << "Erro semantico, tentativa de modificar valor constante: |" << token << "| na linha: "  << nLinha << endl;
                         }
                         else if (tipo == 'X') {
                             nLinha = findLinhaNum(nLinhasIN,contLinha);
-                            cout << "Erro semantico, argumento invalido (label nao eh do tipo dado)" << nLinha << endl;
+                            cout << "Erro semantico, argumento invalido (label nao e do tipo dado): |" << token << "| na linha: "  << nLinha << endl;
                         }
                     }
                     else if (op == 9) { //copy
                         if (flag) { //pegando o segundo argumento (destino)
                             if ((tipo == 'C') || (tipo == '0')) {
                                 nLinha = findLinhaNum(nLinhasIN,contLinha);
-                                cout << "Erro semantico, tentativa de modificar valor constante" << nLinha << endl;
+                                cout << "Erro semantico, tentativa de modificar valor constante: |" << token << "| na linha: "  << nLinha << endl;
                             }
                             else if (tipo == 'X') {
                                 nLinha = findLinhaNum(nLinhasIN,contLinha);
-                                cout << "Erro semantico, argumento invalido (label nao eh do tipo dado)" << nLinha << endl;
+                                cout << "Erro semantico, argumento invalido (label nao e do tipo dado): |" << token << "| na linha: "  << nLinha << endl;
                             }
                             flag = 0;
                         }
