@@ -420,8 +420,11 @@ int expandeMacro (list <MacroNameTable> *MNT, string *mdt, ofstream &codprep, st
         if(nargumentos == 0){//Se a macro nao tiver argumentos ela apenas printa o que tem na mnt
             for(mdtsearch;mdtsearch < mdtfim;mdtsearch++){
                 mdtaux = mdt[mdtsearch];
-                expandeMacro(MNT,mdt,codprep,mdtaux,nLinhasOUT,nLinha);
-                codprep << mdtaux << endl;
+                tirarlinha = 0;
+                tirarlinha = expandeMacro(MNT,mdt,codprep,mdtaux,nLinhasOUT,nLinha);
+                if(tirarlinha == 0){
+                    codprep << mdtaux << endl;
+                }
                 nLinhasOUT->push_back(nLinha);
             }
         }else{
