@@ -1,25 +1,35 @@
 /*
---------------------------------------VERSAO ATUAL--------------------------------------
+--------------------------------------README--------------------------------------
 * Juntando os arquivos
 - TabsimItem do pre.cpp ta sem flagtipo, dá pau? 
 ----------------------------------------------------------------------------------------
 */
 #include <iostream>
-#include <fstream>                           //Para lidar com o arquivo. Nunca usei isso, então nao sei comofas
+#include <fstream>
 #include <string.h>
 #include <list>
-#include <ctype.h>                          // Usando na função isalpha
-#include <sstream>                          // Para retirar as palavras da linha
-#include <algorithm>                        // Para procurar na tabela de simbolos
+#include <ctype.h>
+#include <sstream>
+#include <algorithm>
 
 using namespace std;
 
 /*
+Struct da tabela de simbolos
 O campo tipo é uma flag
 'X' - valor padrao
 '0' - const 0 (nao pode dividir por nem modificar)
 'C' - const (nao pode modificar)
 'D' - label na seção data (nao pode dar jump)
+*/
+typedef struct tabSimItem_s {
+    char label[20];
+    int endereco;
+    char flagTipo = 'X';
+} tabSimItem;
+
+/*
+Struct da MNT
 */
 typedef struct MacroNameTable {
     char label[20];
@@ -28,12 +38,6 @@ typedef struct MacroNameTable {
     int linhamdtfim;
     string macroarg[4];
 } MacroNameTable;
-
-typedef struct tabSimItem_s {
-    char label[20];
-    int endereco;
-    char flagTipo = 'X';
-} tabSimItem;
 
 // As duas funcoes abaixo (icompare_pred e iequals) https://stackoverflow.com/a/23944175
 // Servem para fazer uma comparacao case insensitive de strings
@@ -53,6 +57,7 @@ bool iequals(std::string const& a, std::string const& b)
     }
 }
 
+// Funcao recebe um token e retorna o opcode ou -1 caso nao seja igual a nenhuma operacao conhecida
 int getOp (string token) {
     if (iequals(token,"ADD") == 1) {
         return 1;
@@ -101,6 +106,7 @@ int getOp (string token) {
     }
 }
 
+// Funcao recebe um token e retorna o codigo da diretiva ou -1 caso nao seja igual a nenhuma diretiva conhecida
 int getDiretiva (string token) {
     if (iequals(token,"SPACE") == 1) {
         return 101;
@@ -113,6 +119,7 @@ int getDiretiva (string token) {
     }
 }
 
+// Funcao recebe um opcode e retorna o tamanho da instrucao (opcode + numero de parametros)
 int getTam (int opCode) {
     if (opCode == 9) {
         return 3;
@@ -125,6 +132,7 @@ int getTam (int opCode) {
     }
 }
 
+/*
 void printaTabSimTemp (list <tabSimItem> tabSim) {
     string texto;
     list <tabSimItem> :: iterator it;
@@ -156,9 +164,11 @@ void printaTemp2 (list <int> programa) { // printar lista de numeros de linha
         it++;
     }
 }
+*/
 
+// Funcao recebe o numero da linha na operacao atual e retorna a linha correspondente no codigo original
 int findLinhaNum (list <int> nLinhas, int numLinha) {
-    int i=0;
+    int i=1;
     list <int> :: iterator it;
 
     it = nLinhas.begin();
@@ -166,11 +176,13 @@ int findLinhaNum (list <int> nLinhas, int numLinha) {
         if (it == nLinhas.end()) {
             return -1;
         }
+        it++;
         i++;
     }
     return *it;
 }
 
+// Funcao procura na tabela de simbolos o token recebido e retorna o endereco (e tipo), ou -1 caso nao encontre
 int tabSimSeek (list <tabSimItem> tabSim, string token, char* tipo) {
     list <tabSimItem> :: iterator it;
 
@@ -194,7 +206,7 @@ int tabSimSeek (list <tabSimItem> tabSim, string token, char* tipo) {
     }
 }
 
-//Vitor pls
+// Funcao procura na MNT o token recebido e retorna a posicao na MDT (e mais alguns parametros passados por referencia), ou -1 caso nao encontre
 int mntSeek (list <MacroNameTable> MNT, string token,int *nargumentos, int *linhamdt, int *linhamdtfim, string *arg1, string *arg2, string *arg3, string *arg4) {
     list <MacroNameTable> :: iterator it;
 
@@ -219,6 +231,29 @@ int mntSeek (list <MacroNameTable> MNT, string token,int *nargumentos, int *linh
     }
 }
 
+// Funcao recebe um token e verifica se ele e valido
+void scanner (string token) {
+    int i=0, flagCharInv=0;
+
+    if ((!isalpha(token[0])) && token[0] != '_') {
+        cout << "Erro lexico, primeiro caracter deve ser uma letra ou underscore: " << token << endl;
+    }
+    if (token.length() > 20) {
+        cout << "Erro lexico, token muito longo: " << token << endl;
+    }
+    while (i < (token.length())) {
+        if (!isalnum(token[i])) {
+            if ((token[i] != '_') && (token[i] != '+')){
+                flagCharInv = 1;
+            }
+        }
+        i++;
+    }
+    if (flagCharInv) {
+        cout << "Erro lexico, token possui caracteres invalidos: " << token << endl;
+    }
+}
+
 // Funcao de pre processamento. Resolve IF EQU e remove comentarios
 void preProc (list <tabSimItem> *tabIfEqu, list <int> *nLinhasOUT, string nomeIN, string nomeOUT){//Aqui tem o token e o token aux, sendo o token aux o  token anterior ao token
 	ifstream arquivo;								//Para facilitar quando achar um EQU
@@ -240,7 +275,6 @@ void preProc (list <tabSimItem> *tabIfEqu, list <int> *nLinhasOUT, string nomeIN
     contarg=0;
 
     while (getline(arquivo,linha)) {
-        //cout << linha << endl;
     	if (linha.length() == 0) {
     		linhacont++;
             continue;
@@ -249,7 +283,6 @@ void preProc (list <tabSimItem> *tabIfEqu, list <int> *nLinhasOUT, string nomeIN
         contarg = 0;
         contlabel = 0;
         while(linhaStream >> token){
-        	//errotoken
         	if((token.back()) == ':'){ //Verifica se tem mais de uma label na linha
         		contlabel++;
         	}
@@ -355,6 +388,7 @@ void preProc (list <tabSimItem> *tabIfEqu, list <int> *nLinhasOUT, string nomeIN
     }
 }
 
+// Funcao de expansao de macro recursiva
 int expandeMacro (list <MacroNameTable> *MNT, string *mdt, ofstream &codprep, string linha, list <int> *nLinhasOUT, int nLinha) {
     int nargumentos=0, mdtsearch=0, mdtfim=0, z=0, contarg=0, trocaargumentos=0,copyflag,copyflag2,copyflag3,tirarlinha, flagNPar[] = {0,0,0,0};
     string argumentodeclarado[4], argumentochamado[4], argmacro, mdtaux, mdtaux2, token, linhaaux;
@@ -385,10 +419,10 @@ int expandeMacro (list <MacroNameTable> *MNT, string *mdt, ofstream &codprep, st
                     if(z == nargumentos){
                         trocaargumentos = 1;
                     }else{
-                    cout << "Erro, numero de argumentos invalidos" << endl;
+                    cout << "Erro sintatico, numero de argumentos invalidos" << endl;
                     }
                 }else{
-                    cout << "Erro, chamada invalida de macro" << endl;
+                    cout << "Erro sintatico, chamada invalida de macro" << endl;
                 }
             }
         }
@@ -458,7 +492,7 @@ int expandeMacro (list <MacroNameTable> *MNT, string *mdt, ofstream &codprep, st
         }
         for (z=0;z<nargumentos;z++) {
             if (flagNPar[z] == 0) {
-                cout << "Erro, parametros da macro ausentes" << endl;
+                cout << "Erro semantico, parametros da macro ausentes" << endl;
             }
         }
         return 1;
@@ -466,6 +500,7 @@ int expandeMacro (list <MacroNameTable> *MNT, string *mdt, ofstream &codprep, st
     return 0;
 }
 
+// Funcao de processamento de macro. Cria MNT e MDT e chama a funcao recursiva de expansao de macro
 void macroProc (list <MacroNameTable> *MNT, list <int> nLinhasIN, list <int> *nLinhasOUT, string nomeIN, string nomeOUT){ //Um tanto desses inteiros eu copiei da sua parte e tenho medo de apagar
     ifstream arquivo;
     ofstream codprep;
@@ -485,7 +520,6 @@ void macroProc (list <MacroNameTable> *MNT, list <int> nLinhasIN, list <int> *nL
         newline = 0;
         stringstream linhaStream(linha);
         while(linhaStream >> token){
-            //errotoken
             if((iequals(token,"TEXT") == 1) && (iequals(tokenaux,"SECTION") == 1)){
                 sectiontextflag = 1;
             }
@@ -500,13 +534,13 @@ void macroProc (list <MacroNameTable> *MNT, list <int> nLinhasIN, list <int> *nL
                 macroflag = 1;//Seta uma flag de macro = 1
                 macroflag2 = 1;
                 if(sectiontextflag != 1){
-                    cout << "Macro fora da SECTION TEXT" << endl;
+                    cout << "Erro semantico, macro fora da SECTION TEXT" << endl;
                 }
                 if ((tokenaux.back()) == ':') {//Verifica se o token anterior a macro e um label
                     tokenaux.pop_back();
                     simEndereco = mntSeek(*MNT, tokenaux,NULL,NULL,NULL,NULL,NULL,NULL,NULL);
                     if (simEndereco > 0) {
-                        cout << "Erro, simbolo ja definido: |" << tokenaux << endl;
+                        cout << "Erro semantico, macro ja definida: |" << tokenaux << endl;
                     }
                     tokenaux.push_back('\0');
                     tokenaux.copy(SimAtual.label, tokenaux.length());
@@ -514,7 +548,7 @@ void macroProc (list <MacroNameTable> *MNT, list <int> nLinhasIN, list <int> *nL
                     SimAtual.nargumentos = 0;
                 }
                 else{
-                        cout << "Erro, nao eh label";
+                    cout << "Erro sintatico, nao e label";
                 }
                 while(linhaStream >> token){
                     contarg++;
@@ -524,14 +558,14 @@ void macroProc (list <MacroNameTable> *MNT, list <int> nLinhasIN, list <int> *nL
                         z = 0;
                         while(tokenStream >> argmacro){
                             if (argmacro.front() != '&'){
-                                cout << "Argumento na forma invalida" << endl;
+                                cout << "Erro sintatico, argumento na forma invalida" << endl;
                             }else{
                                 SimAtual.macroarg[z] = argmacro;
                                 z++;
                             }
                         }
                         if(z>4){
-                            cout << "Macro com muitos argumentos" << endl;
+                            cout << "Erro sintatico, macro com muitos argumentos" << endl;
                         }else{
                             SimAtual.nargumentos = z;
                             z = 0;
@@ -539,7 +573,7 @@ void macroProc (list <MacroNameTable> *MNT, list <int> nLinhasIN, list <int> *nL
                     }
                 }
                 if(contarg > 1){
-                    cout << "Macro com muitos argumentos" << endl;
+                    cout << "Erro sintatico, macro com muitos argumentos" << endl;
                 }else{
                 }
             }
@@ -559,152 +593,16 @@ void macroProc (list <MacroNameTable> *MNT, list <int> nLinhasIN, list <int> *nL
         if(macroflag == 0 && endmacroflag == 0 && tirarlinha == 0){
             codprep << linha << endl;
             nLinha = findLinhaNum(nLinhasIN,contLinha);
+            //cout << contLinha << "-" << nLinha << endl;
             nLinhasOUT->push_back(nLinha);
         }
     }
     if(macroflag == 1){
-        cout << "MACRO nao foi finalizada com ENDMACRO" << endl;
+        cout << "Erro semantico, MACRO nao foi finalizada com ENDMACRO" << endl;
     }
 }
-/*
-old void macroProc (list <MacroNameTable> *MNT, list <int> nLinhasIN, list <int> *nLinhasOUT, string nomeIN, string nomeOUT){ //Um tanto desses inteiros eu copiei da sua parte e tenho medo de apagar
-    ifstream arquivo;
-    ofstream codprep;
-    string token,linha,tokenaux,mdt[100],argmacro,argumentodeclarado[10],argumentochamado[10];
-    int equflag,ifflag,nextlineflag,i=0, endereco=0, op=-1, simEndereco=-1,lala,macroflag=0,argumeto;
-    int mdtcont=0,contarg=0,mdtsearch = 0, fim,z,macroflag2,endmacroflag,tirarlinha,mdtfim,trocaargumentos,nargumentos, contLinha=0, nLinha=0;
-    MacroNameTable SimAtual;
 
-    arquivo.open(nomeIN);
-    codprep.open(nomeOUT);
-    while (getline(arquivo,linha)) {
-        contLinha++;
-        contarg = 0;
-        macroflag2 = 0;
-        endmacroflag = 0;
-        tirarlinha = 0;
-        stringstream linhaStream(linha);
-        while(linhaStream >> token){
-            if((mdtsearch = tabSimSeek0(*MNT,token)) > -1){
-                mdtfim = mntSeek(*MNT,token);
-                nargumentos = tabSimSeek3(*MNT,token);
-                tirarlinha = 1;
-                while(linhaStream >> token){
-                    contarg++;
-                    if (contarg == 1){
-                        z = 0;
-                        replace( token.begin(), token.end(), ',', ' ' );
-                        stringstream tokenStream(token);
-                        while(tokenStream >> argmacro){
-                            argumentochamado[z] = argmacro;
-                            z++;
-                        }
-                        if(z == nargumentos){
-                            trocaargumentos = 1;
-                        }else{
-                        cout << "Erro, numero de argumentos invalidos" << endl;
-                        }
-                    }else{
-                        cout << "ERRO" << endl;
-                    }
-                }
-                for(mdtsearch;mdtsearch < mdtfim;mdtsearch++){
-                    if(trocaargumentos == 1){
-                        if(mdt[mdtsearch].find(argumentodeclarado[0]) < 1000){
-                                mdt[mdtsearch].replace(mdt[mdtsearch].find(argumentodeclarado[0]),max(argumentochamado[0].length(),argumentodeclarado[0].length()),argumentochamado[0]);
-                        }
-                        if(mdt[mdtsearch].find(argumentodeclarado[1]) < 1000){
-                                mdt[mdtsearch].replace(mdt[mdtsearch].find(argumentodeclarado[1]),max(argumentochamado[1].length(),argumentodeclarado[1].length()),argumentochamado[1]);
-                        }
-                        if(mdt[mdtsearch].find(argumentodeclarado[2]) < 1000){
-                                mdt[mdtsearch].replace(mdt[mdtsearch].find(argumentodeclarado[2]),max(argumentochamado[2].length(),argumentodeclarado[2].length()),argumentochamado[2]);
-                        }
-                        if(mdt[mdtsearch].find(argumentodeclarado[3]) < 1000){
-                                mdt[mdtsearch].replace(mdt[mdtsearch].find(argumentodeclarado[3]),max(argumentochamado[3].length(),argumentodeclarado[3].length()),argumentochamado[3]);
-                        }
-                        if(mdt[mdtsearch].find(argumentodeclarado[0]) < 1000){
-                                mdt[mdtsearch].replace(mdt[mdtsearch].find(argumentodeclarado[0]),max(argumentochamado[0].length(),argumentodeclarado[0].length()),argumentochamado[0]);
-                        }
-                        if(mdt[mdtsearch].find(argumentodeclarado[1]) < 1000){
-                                mdt[mdtsearch].replace(mdt[mdtsearch].find(argumentodeclarado[1]),max(argumentochamado[1].length(),argumentodeclarado[1].length()),argumentochamado[1]);
-                        }
-                        if(mdt[mdtsearch].find(argumentodeclarado[2]) < 1000){
-                                mdt[mdtsearch].replace(mdt[mdtsearch].find(argumentodeclarado[2]),max(argumentochamado[2].length(),argumentodeclarado[2].length()),argumentochamado[2]);
-                        }
-                        if(mdt[mdtsearch].find(argumentodeclarado[3]) < 1000){
-                                mdt[mdtsearch].replace(mdt[mdtsearch].find(argumentodeclarado[3]),max(argumentochamado[3].length(),argumentodeclarado[3].length()),argumentochamado[3]);
-                        }
-                    }
-
-                    codprep << mdt[mdtsearch] << endl;
-                    nLinha = findLinhaNum(nLinhasIN,contLinha);
-                    nLinhasOUT->push_back(nLinha);
-                }
-            }
-            if((iequals(token,"MACRO") == 1)){//Verifica se o token e um EQU, se for EQU ele manda o label anterior pra tabela
-                macroflag = 1;//Seta uma flag de macro = 1
-                macroflag2 = 1;
-                if ((tokenaux.back()) == ':') {//Verifica se o token anterior a macro e um label
-                    tokenaux.pop_back();
-                    simEndereco = tabSimSeek0(*MNT, tokenaux);
-                    if (simEndereco > 0) {
-                        cout << "Erro, simbolo ja definido: |" << tokenaux << endl;
-                    }
-                    tokenaux.push_back('\0');
-                    tokenaux.copy(SimAtual.label, tokenaux.length());
-                    SimAtual.linhamdt = mdtcont;
-                    SimAtual.nargumentos = 0;
-                }
-                else{
-                        cout << "Erro, nao eh label";
-                }
-                while(linhaStream >> token){
-                    contarg++;
-                    if (contarg == 1){
-                        replace( token.begin(), token.end(), ',', ' ' );
-                        stringstream tokenStream(token);
-                        z = 0;
-                        while(tokenStream >> argmacro){
-                            if (argmacro.front() != '&'){
-                                cout << "Argumento na forma invalida" << endl;
-                            }else{
-                                argumentodeclarado[z] = argmacro;
-                                z++;
-                            }
-                        }
-                        if(z>4){
-                            cout << "Macro com muitos argumentos" << endl;
-                        }else{
-                            SimAtual.nargumentos = z;
-                            z = 0;
-                        }
-                    }
-                }
-                if(contarg > 1){
-                    cout << "Macro com muitos argumentos" << endl;
-                }else{
-                }
-            }
-            if((iequals(token,"ENDMACRO") == 1)){
-                macroflag = 0; //Seta a flag de macro = 0
-                endmacroflag = 1;
-                SimAtual.linhamdtfim = mdtcont;
-                MNT->push_back(SimAtual);
-            }
-            tokenaux = token;
-        }
-        if (macroflag == 1 && macroflag2 == 0){ //Quando acha a label MACRO, copia as proximas linhas ate o ENDMACRO pro MDT(arquivo texto)
-            mdt[mdtcont] = linha;//E conta a linha pra colocar na MNT
-            mdtcont++;
-        }
-        if(macroflag == 0 && endmacroflag == 0 && tirarlinha == 0){
-            codprep << linha << endl;
-            nLinha = findLinhaNum(nLinhasIN,contLinha);
-            nLinhasOUT->push_back(nLinha);
-        }
-    }
-}
-*/
+// Funcao que realiza a primeira passagem. Cria a tabela de simbolos e limpa os labels do codigo, escrevendo o codigo limpo em uma lista de strings
 void primeiraPassagem (list <tabSimItem> *tabSim, list <string> *programa, list <int> nLinhasIN, list <int> *nLinhasOUT, string nomeIN) {
     ifstream arquivo;
     char colon, semicolon;
@@ -724,7 +622,7 @@ void primeiraPassagem (list <tabSimItem> *tabSim, list <string> *programa, list 
     flagSection = iequals(token,"SECTION");
     linhaStream >> token;
     if ((iequals(token,"TEXT") != 1) || (flagSection != 1)) {
-        cout << "Erro, nao tem section text" << endl; //qual erro
+        cout << "Erro semantico, nao tem section text" << endl;
     }
     flagSection = 0;
     while (getline(arquivo,linhaIN)) {
@@ -738,18 +636,21 @@ void primeiraPassagem (list <tabSimItem> *tabSim, list <string> *programa, list 
                     goto sectionData;
                 }
                 else {
-                    cout << "Erro sintatico, definicao de secao errada"; //qual erro
+                    nLinha = findLinhaNum(nLinhasIN,contLinha);
+                    cout << "Erro sintatico, definicao de secao errada: |SECTION " << token << "| na linha" << nLinha << endl;
                 }
             }
             colon = token.back();
             if (colon == ':') {
                 if (flagLabelDuplo) {
-                    cout << "Erro sintatico, dois rotulos para uma mesma linha: " << token << endl;
+                    nLinha = findLinhaNum(nLinhasIN,contLinha);
+                    cout << "Erro sintatico, dois rotulos para uma mesma linha: |" << token << "| na linha" << nLinha << endl;
                 }
                 token.pop_back();
                 simEndereco = tabSimSeek(*tabSim,token,NULL);
                 if (simEndereco > 0) {
-                    cout << "Erro semantico, simbolo ja definido: |" << token << endl;
+                    nLinha = findLinhaNum(nLinhasIN,contLinha);
+                    cout << "Erro semantico, simbolo ja definido: |" << token << "| na linha" << nLinha << endl;
                 }
                 token.push_back('\0');
                 token.copy(SimAtual.label, token.length());
@@ -769,7 +670,8 @@ void primeiraPassagem (list <tabSimItem> *tabSim, list <string> *programa, list 
                         linhaOUT.push_back(' ');
                         linhaStream >> token;
                         if (token.find(',') == string::npos) {
-                            cout << "Erro sintatico, esperava virgula como separador dos operandos" << endl;
+                            nLinha = findLinhaNum(nLinhasIN,contLinha);
+                            cout << "Erro sintatico, esperava virgula como separador dos operandos: |" << token << "| na linha" << nLinha << endl;
                         }
                         linhaOUT.append(token.substr(0,token.find(',')));
                         linhaOUT.push_back(' ');
@@ -784,7 +686,8 @@ void primeiraPassagem (list <tabSimItem> *tabSim, list <string> *programa, list 
                     }
                 }
                 else if (diretiva > 0) {
-                    cout << "Erro semantico, SPACE ou CONST na secao TEXT" << endl;
+                    nLinha = findLinhaNum(nLinhasIN,contLinha);
+                    cout << "Erro semantico, diretiva na secao TEXT: |" << token << "| na linha" << nLinha << endl;
                 }
                 linhaOUT.append(token);
                 linhaOUT.push_back(' ');
@@ -810,7 +713,8 @@ void primeiraPassagem (list <tabSimItem> *tabSim, list <string> *programa, list 
                 token.pop_back();
                 simEndereco = tabSimSeek(*tabSim,token,NULL);
                 if (simEndereco > 0) {
-                    cout << "Erro semantico, simbolo ja definido: |" << token << endl;
+                    nLinha = findLinhaNum(nLinhasIN,contLinha);
+                    cout << "Erro semantico, simbolo ja definido: |" << token << "| na linha" << nLinha << endl;
                 }
                 token.push_back('\0');
                 token.copy(SimAtual.label, token.length());
@@ -835,7 +739,8 @@ void primeiraPassagem (list <tabSimItem> *tabSim, list <string> *programa, list 
                         op = getOp(token);
                         diretiva = getDiretiva(token);
                         if ((op > 0) || (diretiva > 0)) {
-                            cout << "Erro sintatico, esperava a definicao da CONST";
+                            nLinha = findLinhaNum(nLinhasIN,contLinha);
+                            cout << "Erro sintatico, esperava a definicao da CONST: |" << token << "| na linha" << nLinha << endl;
                             //Ver se eh nao numero
                         }
                         if ((stoi(token,NULL) == 0) || (stoi(token,NULL,16) == 0)) {
@@ -869,7 +774,8 @@ void primeiraPassagem (list <tabSimItem> *tabSim, list <string> *programa, list 
                     }
                 }
                 else if (op > 0) {
-                    cout << "Erro semantico, instrucao na secao DATA" << endl;
+                    nLinha = findLinhaNum(nLinhasIN,contLinha);
+                    cout << "Erro semantico, instrucao na secao DATA: |" << token << "| na linha" << nLinha << endl;
                     flagNovaLinha = 0;
                 }
                 else {
@@ -883,7 +789,8 @@ void primeiraPassagem (list <tabSimItem> *tabSim, list <string> *programa, list 
                         flagNovaLinha = 0;
                     }
                     else {
-                        cout << "Erro sintatico, esperava CONST ou SPACE" << endl; //qual erro
+                        nLinha = findLinhaNum(nLinhasIN,contLinha);
+                        cout << "Erro sintatico, esperava CONST ou SPACE: |" << token << "| na linha" << nLinha << endl;
                     }
                 }                
             }
@@ -898,29 +805,7 @@ void primeiraPassagem (list <tabSimItem> *tabSim, list <string> *programa, list 
     arquivo.close();
 }
 
-void scanner (string token) {
-    int i=0, flagCharInv=0;
-
-    if ((!isalpha(token[0])) && token[0] != '_') {
-        cout << "Erro lexico, primeiro caracter deve ser uma letra ou underscore: " << token << endl;
-    }
-    if (token.length() > 20) {
-        cout << "Erro lexico, token muito longo: " << token << endl;
-    }
-    while (i < (token.length())) {
-        if (!isalnum(token[i])) {
-            if (token[i] != '_'){
-                flagCharInv = 1;
-            }
-        }
-        i++;
-    }
-    if (flagCharInv) {
-        cout << "Erro lexico, token possui caracteres invalidos: " << token << endl;
-    }
-}
-
-// Assumindo que está sem labels e sem comentários
+// Funcao que realiza a segunda passagem. Esta funcao faz a montagem propriamente dita
 void segundaPassagem (list <tabSimItem> tabSim, list <string> programa, list <int> nLinhasIN, string nomeOUT) {
     ofstream output;
     int i, op=-1, tamanho=-1, simEndereco=-1, diretiva=-1, flag=0, contLinha=0, nLinha=0;
@@ -1069,30 +954,20 @@ int main (int argc, char* argv[]) {
         nomeOUT.assign(argv[3]);
 		if (!strcmp(argv[1],"-p")) {
 			nomeOUT.append(".pre");
-			//cout << nomeIN << " " << nomeOUT << endl;
 			preProc(&tabIfEqu,&nLinhasPre,nomeIN,nomeOUT);
 		}
 		else if (!strcmp(argv[1],"-m")) {
 			nomeOUT.append(".mcr");
-			cout << nomeIN << " " << nomeOUT << endl;
-			preProc(&tabIfEqu,&nLinhasPre,nomeIN,"codPre.txt");
-            printaTemp2(nLinhasPre);
-			macroProc(&MNT,nLinhasPre,&nLinhasMacro,"codPre.txt", nomeOUT);
-            printaTemp2(nLinhasMacro);
-			//remove("codPre.txt");
+			preProc(&tabIfEqu,&nLinhasPre,nomeIN,"codPre.pre");
+			macroProc(&MNT,nLinhasPre,&nLinhasMacro,"codPre.pre", nomeOUT);
 		}
 		else if (!strcmp(argv[1],"-o")) {
 			nomeOUT.append(".o");
-			//cout << nomeIN << " " << nomeOUT << endl;
-			preProc(&tabIfEqu,&nLinhasPre,nomeIN,"codPre.txt");
-			macroProc(&MNT,nLinhasPre,&nLinhasMacro,"codPre.txt", "codMacro.txt");
-			primeiraPassagem(&tabSim,&programa,nLinhasMacro,&nLinhas1pass,"codMacro.txt");
+			preProc(&tabIfEqu,&nLinhasPre,nomeIN,"codPre.pre");
+			macroProc(&MNT,nLinhasPre,&nLinhasMacro,"codPre.pre", "codMacro.mcr");
+			primeiraPassagem(&tabSim,&programa,nLinhasMacro,&nLinhas1pass,"codMacro.mcr");
 			segundaPassagem(tabSim,programa,nLinhas1pass,nomeOUT);
-			remove("codPre.txt");
-			remove("codMacro.txt");
 		}
     }
-    //printaTabSimTemp(tabSim);
-
     return 0;
 }
